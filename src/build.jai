@@ -1,4 +1,4 @@
-// This is a metapgrogram that gets compiled, which pulls all the files in the project that need complies as well
+// Metaprogram that builds our main application.
 #import "Compiler";
 #import "Basic";
 
