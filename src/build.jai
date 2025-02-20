@@ -18,7 +18,8 @@ build :: () {
 
     add_build_file("./main.jai", w);
 
-   set_build_options_dc(.{do_output=false});
+    // The dc (during compile) option tells the compiler not to emit output for this metaprogram file while building our application.
+    set_build_options_dc(.{do_output=false});
 }
 
 #run build();
