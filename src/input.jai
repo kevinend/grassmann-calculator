@@ -32,12 +32,17 @@ read_line :: () -> ( success: bool, user_input: string ) {
 }
 
 flush_input :: () -> () {
+
+    if !std_in.handle {
+        print("Unable to flush standard input stream. No active handle to the file input stream.\n");
+        return;
+    }
     
     // Read individual characters from stdin until we hit the newline character.
 	temp: u8;
     bytes_read: u32 = 0;
 	while true {
-		ok := ReadFile( std_in.handle, *temp, 1, *bytes_read, null );
+	    ok := ReadFile( std_in.handle, *temp, 1, *bytes_read, null );
 		if temp == #char "\n" { break; }
 	}
 }
@@ -47,7 +52,7 @@ flush_input :: () -> () {
 #import "Windows";
 #import "File";
 
-// The max input buffer size is arbitrary and can be pushed up if we exceed it for certain expressions.
+// Input buffer size is arbitrary and should be adjusted later to accommodate larger expressions.
 MAX_USER_INPUT_LENGTH		:: 100;
 CARRIAGE_RETURN_AND_NEWLINE :: 2;
 USER_INPUT_BUFFER_SIZE 		:: MAX_USER_INPUT_LENGTH + CARRIAGE_RETURN_AND_NEWLINE;
