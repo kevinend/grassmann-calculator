@@ -19,7 +19,7 @@ read_line :: () -> ( success: bool, user_input: string ) {
             success = true;
 		}
         else {
-            print( "Expression length exceeded limit of % characters, ignoring input\n", MAX_INPUT_LENGTH );
+            print( "Expression length exceeded limit of % characters, ignoring input.\n", MAX_INPUT_LENGTH );
             success = false;
         }
     }
@@ -39,11 +39,14 @@ flush_input :: () -> () {
     }
     
     // Read individual characters from stdin until we hit the newline character.
-	temp: u8;
+	temp: u8 = #char "\0";
     bytes_read: u32 = 0;
-	while true {
+	while temp != #char "\n" {
 	    ok := ReadFile( std_in.handle, *temp, 1, *bytes_read, null );
-		if temp == #char "\n" { break; }
+        if !ok || bytes_read != 1 {
+            print("Encountered an error while flushing the standard input stream. Error is fatal, terminating application\n");
+            exit(1);
+        }
 	}
 }
 
