@@ -4,6 +4,7 @@ Lexer :: struct {
 
     input: string;
 
+    // Maintain current location in the input stream.
     cursor:          int = 0;
     line_number:     int = 0;
     character_index: int = 0;
@@ -13,6 +14,7 @@ Lexer :: struct {
     tokens: [MAX_TOKENS_PER_EXPRESSION] Token;
     num_tokens: int = 0;
 
+    // Track the current token being lexed. Update lexer state on new token and on completion of token and then update metadata on token instance.
     token_line_number:           int = 0;
     token_character_index_start: int = 0;
     
