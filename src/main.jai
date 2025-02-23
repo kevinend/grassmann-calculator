@@ -1,14 +1,5 @@
 #scope_export
 
-// Idea: Use the symbol table to hold the basis elements!
-//  when you create one you create a new basis_element node that is pre-populated
-//  you do the same for the scalar symbols so you return a bunch of identifiers then you do a lookup during parsing
-//  the list of available scalar symbols as well, you don't need to know that ahead of time, but you do need to know at parse time...
-//  this might simplify things because i tried to do that in the lexer, which wasn't helpful
-//  Identifier or Keyword and that is about it
-//   then in parsing we try to lookup the identifier, if it is a basis element then replace with a basis element node
-//   
-
 main :: () {
    
     USER_PROMPT :: "> ";

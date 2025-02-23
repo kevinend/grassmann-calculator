@@ -11,12 +11,15 @@ Lexer :: struct {
     line_number:     int = 0;
     character_index: int = 0;
 
-    MAX_TOKENS_PER_EXPRESSION :: 100;  // an expression is a single line of input
+    MAX_TOKENS_PER_EXPRESSION :: 100;
     tokens: [MAX_TOKENS_PER_EXPRESSION] Token;
     num_tokens: int = 0;
 
     token_line_number:           int = 0;
     token_character_index_start: int = 0;
+
+
+    builder: String_Builder; // scratch buffer for inspection
     
 	TEMP_BUFFER_SIZE :: 64; // dictates the size of identifiers and the number of digits in a number
 	temp_buffer: [TEMP_BUFFER_SIZE] u8;
