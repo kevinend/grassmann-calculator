@@ -17,7 +17,7 @@ Lexer :: struct {
     // Track the current token being lexed. Update lexer state on new token and on completion of token and then update metadata on token instance.
     token_line_number:           int = 0;
     token_character_index_start: int = 0;
-    
+
 	TEMP_BUFFER_SIZE :: 64; // dictates the size of identifiers and the number of digits in a number
 
 	temp_buffer: [TEMP_BUFFER_SIZE] u8;
@@ -85,7 +85,7 @@ reset_lexer :: (lexer: *Lexer, input: string) {
 
     lexer.cursor = 0;
 
-    // Assumes the input is still coming from the console. If it comes from a file then we need 
+    // Assumes the input is still coming from the console. If it comes from a file then we need
     // to keep track of the current line number and not reset character index on every iteration of the loop!
     lexer.line_number     = 0;
     lexer.character_index = 0;
@@ -95,8 +95,8 @@ reset_lexer :: (lexer: *Lexer, input: string) {
 }
 
 peek_next_character :: inline (lexer: *Lexer) -> (success: bool, c: u8) {
-	
-	if (lexer.input.count - lexer.cursor) > 0 { 
+
+	if (lexer.input.count - lexer.cursor) > 0 {
 		return true, lexer.input[lexer.cursor];
 	}
 	else {
@@ -152,18 +152,18 @@ tag_token_end :: inline (lexer: *Lexer, token: *Token) {
 }
 
 error_token :: () -> (token: Token) {
-	
+
 	token: Token;
 	token.type = .Error;
 
 	return token;
 }
 
-begins_literal :: inline (c: u8) -> ( bool ) {
+begins_literal :: inline (c: u8) -> bool {
 	return c == #char "'";
 }
 
-compose_token_literal :: (lexer: *Lexer) -> (token: Token) {
+compose_token_literal :: (lexer: *Lexer) -> token: Token {
 
 	continues_literal :: (c: u8) -> bool {
 		return c != #char "'";
@@ -218,7 +218,7 @@ begins_number :: (c: u8) -> bool {
 	return is_digit(c);
 }
 
-compose_token_number :: (lexer: *Lexer ) -> token: Token {
+compose_token_number :: (lexer: *Lexer) -> token: Token {
 
 	// This procedure can get very complicated trying to handle floats, hex, overflow, etc...
 	// As a first pass just handle integers.
@@ -305,7 +305,7 @@ compose_token_identifier_or_keyword :: (lexer: *Lexer) -> token: Token {
 	// alias temporary buffer; copy identifier into token once processed
 	t: string;
 	t.data  = lexer.temp_buffer.data;
-	t.count = 0; 
+	t.count = 0;
 
 	success, c = peek_next_character(lexer);
 	t.data[0]  = c; // using .data to ignore array bounds checking
@@ -330,7 +330,7 @@ compose_token_identifier_or_keyword :: (lexer: *Lexer) -> token: Token {
     token: Token;
     token.type = .Identifier;
 
-    if t == { 
+    if t == {
         case "dir";   { token.type = .Keyword_Direction; }
         case "pos";   { token.type = .Keyword_Position;  }
         case "basis"; { token.type = .Keyword_Basis;     }
@@ -341,7 +341,7 @@ compose_token_identifier_or_keyword :: (lexer: *Lexer) -> token: Token {
         token.text.data = talloc(t.count * size_of(u8));
 	    memcpy(token.text.data, t.data, t.count);
 	    token.text.count = t.count;
-        
+
     }
 
     tag_token_end(lexer, *token);
@@ -359,7 +359,7 @@ compose_token_operator_or_separator :: (c: u8, lexer: *Lexer) -> token: Token {
 		// Operators
         case #char "="; { token.type = .Equals;             }
 		case #char "+"; { token.type = .Plus;               }
-		case #char "-"; { token.type = .Minus;              }    
+		case #char "-"; { token.type = .Minus;              }
 		case #char "*"; { token.type = .Asterisk;           }
 		case #char "/"; { token.type = .Forward_Slash;      }
         case #char "^"; { token.type = .Caret;              }
@@ -372,8 +372,8 @@ compose_token_operator_or_separator :: (c: u8, lexer: *Lexer) -> token: Token {
         case #char "("; { token.type = .Open_Paren;   }
         case #char ")"; { token.type = .Closed_Paren; }
         case #char ","; { token.type = .Comma;        }
-        case #char ";"; { token.type = .Semicolon;    } 
-		
+        case #char ";"; { token.type = .Semicolon;    }
+
 		case; {
 			report_error( lexer, "Unrecognized operator or separator." );
 			return error_token();
