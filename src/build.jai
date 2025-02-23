@@ -18,6 +18,8 @@ build :: () {
 
     add_build_file("./main.jai",  w);
     add_build_file("./input.jai", w);
+    add_build_file("./token.jai", w);
+    add_build_file("./lexer.jai", w);
 
     // The dc (during compile) option tells the compiler not to emit output for this metaprogram file while building our application.
     set_build_options_dc(.{do_output=false});
