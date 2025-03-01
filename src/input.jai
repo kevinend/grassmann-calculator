@@ -11,7 +11,7 @@ read_line :: () -> ( success: bool, user_input: string ) {
 	}
 
     bytes_read: u32 = 0;
-    ok := ReadFile( std_in.handle, input_buffer.data, INPUT_BUFFER_SIZE, *bytes_read, null );
+    ok := ReadFile(std_in.handle, input_buffer.data, INPUT_BUFFER_SIZE, *bytes_read, null);
     if ok && bytes_read > 0 {
 		if input_buffer[bytes_read-1] == #char "\n" {
             user_input.data  = input_buffer.data;

@@ -26,7 +26,7 @@ Lexer :: struct {
     error_message:  string;
 }
 
-generate_tokens :: (lexer: *Lexer, input: string) {
+generate_tokens :: (lexer: *Lexer, input: string) -> [] Token {
 
     reset_lexer(lexer, input);
 
@@ -72,7 +72,7 @@ generate_tokens :: (lexer: *Lexer, input: string) {
 		add_token(lexer, token);
     }
 
-    return;
+    return lexer.tokens;
 }
 
 #scope_file
@@ -84,6 +84,7 @@ reset_lexer :: (lexer: *Lexer, input: string) {
     lexer.input = input;
 
     lexer.cursor = 0;
+	lexer.num_tokens = 0;
 
     // Assumes the input is still coming from the console. If it comes from a file then we need
     // to keep track of the current line number and not reset character index on every iteration of the loop!

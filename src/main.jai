@@ -1,12 +1,17 @@
 #scope_export
 
 main :: () {
-   
+
     USER_PROMPT :: "> ";
     success: bool = false;
     quit: bool    = false;
 
-    lexer: Lexer;
+    lexer:       Lexer;
+    parser:      Parser;
+    interpreter: Interpreter;
+
+    update_exterior_space(*interpreter.exterior_space, dimension = 4, one_element_symbols = .["e0","e1","e2","e3"]);
+    init_global_parsing_tables();
 
 	input: string;
 	while !quit {
@@ -29,14 +34,18 @@ main :: () {
             continue;
         }
 
-        generate_tokens(*lexer, input);
+        tokens := generate_tokens(*lexer, input);
         if lexer.error_reported {
 			print(lexer.error_message);
 			continue;
 		}
+
+        ast := parse(*parser, tokens);
+        descend(ast.root);
     }
 		
 }
 
 #scope_file
 #import "Basic";
+#import "Hash_Table";
