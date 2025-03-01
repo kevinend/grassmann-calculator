@@ -29,7 +29,7 @@ main :: () {
             continue;
         }
         else
-        if input == "quit" {
+        if input == "quit" || input == "exit" {
             quit = true;
             continue;
         }

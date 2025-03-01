@@ -6,7 +6,7 @@
 
     Error messages are handled in two phases. Phase 1 occurs parsing where obvious syntatic mistakes have been made.
     Examples include unmatched parenthesis or two identifiers next to each other without an infix operator, etc. Phase 2
-    is a pass over the constructed AST to investigate semantic errors. These are things like trying to perform scalar multiplication
+    is a pass over the constructed AST to investigate semantic errors. These are things like trying to perform scalar operations
     between two basis elements (which is not defined), attempting to assign an expression to a scalar symbol, or making a function
     call with an unrecognized intrinsic, etc..
 */
@@ -237,7 +237,7 @@ parse :: (parser: *Parser, tokens: [] Token) -> Ast {
 descend :: (node: *Ast_Node, indent: int = 0) {
 
     // Utility function to print AST's until the interpreter is up and working!
-    
+
     if node == null {
         return;
     }
