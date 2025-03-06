@@ -1,156 +1,19 @@
 /*
     The parser is based off this algorithm https://github.com/erikeidt/erikeidt.github.io/blob/master/The-Double-E-Method.md.
-    The first implementation was a hand-rolled recursive descent parser then I explored using a pratt parser and a combo of
+    The first implementation was a hand-rolled recursive descent parser then a pratt parser and a combo of
     a shunting yard to convert expressions to RPN then recursive descent. The chosen method leverages two stacks so the recursion
     of normal algorithms is replaced with a simple top level loop.
 
+    On Error Reporting:
+
     Error messages are handled in two phases. Phase 1 occurs parsing where obvious syntatic mistakes have been made.
     Examples include unmatched parenthesis or two identifiers next to each other without an infix operator, etc. Phase 2
-    is a pass over the constructed AST to investigate semantic errors. These are things like trying to perform scalar operations
-    between two basis elements (which is not defined), attempting to assign an expression to a scalar symbol, or making a function
-    call with an unrecognized intrinsic, etc..
+    is a pass over the constructed AST to investigate semantic errors. These are things like performing scalar operations
+    between two basis elements (which is not defined), assigning an expression to a scalar symbol, or making a function
+    call with an unrecognized intrinsic, undefined symbols (using a symbol prior to it's definition), etc..
 */
 
 #scope_export
-
-/*
-    When do you add a new term?
-    During an addition where the factors composing the terms are not equal?
-    1. How do you know you are an addition? 
-        -- Parent is a binary operator node of with op addition
-    2. How do you determine if the terms are equal? 
-        -- You compare each factor from one term with the factors in the other term
-    3. How do you know a factor is equal?
-        -- If it points to the same symbol and has the same value for it's exponent
-    4. How do you know if factors point to the same symbol?
-        -- Their .data pointers have the same address.
-
-// That's it then you have the symbol table with the defined symbols and what not
-// L1 = L1 whatever
-
-///////////////////////////////////////////////////////
-// This is how to do sums!
-
-    // Equal terms have equal factors.
-    num_lhs_terms: int = lhs.terms.count;
-    for i: 0..num_lhs_terms-1 {
-        lterm := lhs.terms[i];
-        for rterms in rhs.terms {
-            matching_terms := check_for_matching_terms(lterm, rterm);
-            if matching_terms {
-                // Note: Could remove this from the rhs terms since it already matched but leaving it in for now.
-                lterm.multiples += rterm.multiples;
-            }
-            else {
-                array_add(lhs.terms, rterm);
-            }
-        }
-    }
-
-    matching_terms: bool = false;
-    if lterm.factors.count == rterm.factors.count {
-        num_matching_factors: int = 0;
-        for lfactor in lterm.factors {
-            for rfactor in rterm.factors {
-                if lfactor.data == rfactor.data && lfactor.exponent == rfactor.exponent {
-                    num_matching_factors += 1;
-                }
-            }
-        }
-
-        if num_matching_factors == lhs.factors.count {
-            matching_terms = true;
-        }
-    }
-
-    return matching_terms;
-
-/////////////////////////////////////////////////////
-// This is how to do multiplication.
-Ex. 3 * 4
-Ex. (4a1b2 + 3c1)e1 ^ (6a2c1 + 7d1)
-
-// Generates whole new terms, what about in the scalar case, there are no factors
-// but if we want to raise to the power then we just bump
-
-new_terms: [..] Term;
-
-for lterm in lhs.terms {
-    for rterm in rhs.terms {
-        new_term = multiply_terms(lterm, rterm);
-        new_term.multiples = lterm.multiples * rterm.multiples;
-        array_add(*new_terms, new_term);
-    }
-}
-
-lhs.terms = new_terms;
-
-// need to copy the factors wholesale
-new_term: Term = copy_term(lterm);
-
-found_factor: bool = false;
-for rfactor in rterm.factors {
-    for lfactor in new_term.factors {
-        if rfactor.data == lfactor.data {
-            lfactor.exponent += rfactor.exponent;
-            found_factor = true;
-            break;
-        }
-    }
-
-    if !found_factor { array_add(new_term.factors, rfactor); }
-    found_factor = false;
-}
-
-*/
-
-// 
-// Two things we have to do is:
-//  1. Add scalars
-//  2. Multiply scalars
-//
-// Scalars, want a single 'multiple' which is an integer, default to 1 i guess then handle scalars with a simple dynamic list
-// it isn't the prettiest but it is dead simple.
-// On add need to compare all 'scalar symbols' for a match, if they do then bump multiple
-// On multiplication, multiply 'multiples' then check symbols and bump 'Power' field, (don't try to coalesce into a single power quite yet)
-// Baby steps, this is already so much cleaner that i don't want to muck it up.
-//
-// For function call needs to be a keyword as the 'identifier' otherwise it is an error.
-// Need a symbol table and it needs to hold a list of the basis one elements and we need to resolve identifiers as basis elements
-//
-// On top level-loop do we want to track errors and if we get an error just literally stop parsing?
-// while not at the end of input || error_detected, if error detected just report the error immediately to the user
-// Then we know when we go on our merry way expanding and simplifying that if something is screwed up that it was our mistake.
-//
-// Robustness around scalar exponentiation, can only occur after a scalar symbol!
-//
-
-/* Test cases:
-
-v = dir(v) + pos(v)
-v = dir(v) | pos(v)
-v|w & w|v
-(p | dir(P)!) & P   ; this is the projection formula homie!
--dir(v)!
--(dir(v)!)
-dir((3+4)*(5+6))
-pos((3 + 4), e1|e2) + basis(3) // NOPE
-5*4^3
-T = v!!
--!v! should parse as (-(!v))!
-L = dir(p|v!, 4)          // this doesn't look right!
-p = 4*e1; // WORKED
-pos(arg1); // WORKED!
-pos(arg1,arg2);
-pos(arg1,arg2,arg3) ; 02.23.2025 this no workie either!
-dir(arg1,(arg2+arg3));  02.23.2025 This doesn't work anymore; wonder if that was what the other logic was about? with the open paren in the infix section?
-4*e1|e2 + e1|5*e3
-(-a + b) * (c + d)
-3 * 4 + 5 * 7
-3 + 4 + 5
-3^4 + 5 // doesn't work!
-
-*/
 
 Parser :: struct {
     tokens: [] Token;
@@ -185,8 +48,7 @@ parse :: (parser: *Parser, tokens: [] Token) -> Ast {
                 stack_push(operators, op);
             }
             else {
-                next := peek_token(parser);
-                new_operand(token, next, operands);
+                new_operand(token, operands);
                 parser.mode = .Infix_or_Postfix;
             }
         }
@@ -252,6 +114,11 @@ descend :: (node: *Ast_Node, indent: int = 0) {
         descend(operator_node.rhs, indent + 2);
     }
     else
+    if node.kind == .Numeric_Literal {
+        literal := cast(*Numeric_Literal_Node)node;
+        print("Literal == %\n", literal.value);
+    }
+    else
     if node.kind == .Symbol {
         symbol := cast(*Symbol_Node)node;
         print("Symbol == %\n", symbol.name);
@@ -264,10 +131,15 @@ descend :: (node: *Ast_Node, indent: int = 0) {
     else
     if node.kind == .Scalar {
         scalar := cast(*Scalar_Node)node;
+        print("Scalar value == %\n", scalar.value);
+    }
+    else
+    if node.kind == .Scalar_Expression {
+        scalar := cast(*Scalar_Expression_Node)node;
         for term: scalar.terms {
             print("Multiple == %", term.multiples);
             for factor: term.factors {
-                if factor.symbol != "1" {
+                if factor.symbol != 1 {
                     print("%", factor.symbol);
                 }
             }
@@ -288,7 +160,6 @@ descend :: (node: *Ast_Node, indent: int = 0) {
             case .Direction; { print("Intrinsic: Direction\n"); }
             case .Position;  { print("Intrinsic: Position\n"); }
             case .Basis;     { print("Intrinsic: Basis\n"); }
-        
         }
     }
 }
@@ -328,19 +199,16 @@ check_for_operand :: (expected: Node_Kind, operands: *Stack(*Ast_Node)) -> bool 
 // There are two ways to generate a new operand on the operands stack.
 //  (1) Parse a token that is the left or right-hand side of an operator such as an identifier, basis element, scalar, literal, etc.
 //  (2) Applying an operator to operands within the stack generating a new operand node.
-new_operand :: (token: Token, next: Token, operands: *Stack(*Ast_Node)) {
+new_operand :: (token: Token, operands: *Stack(*Ast_Node)) {
 
     node: *Ast_Node = null;
-    next_op := g_nonprefix_token_to_operator[next.type];
 
     if token.type == .Identifier {
         node = new_symbol_node(token.text);
-        // do the additional lookups in here! scalar symbol, basis element or symbol
-        // and do the Symbol_Info so do a lookup and if found --> figure out if it is a basis element or scalar symbol otherwise it is just a symbol!
     }
     else
     if token.type == .Number {
-        node = new_scalar_node(token.value, "1");
+        node = new_numeric_literal_node(token.value);
     }
     if token.type == .Keyword_Direction {
         node = new_intrinsic_node(.Direction);
@@ -375,8 +243,8 @@ new_operand :: (op: Operator, operands: *Stack(*Ast_Node)) {
             node = new_binary_operator_node(lhs, op, rhs);
         }
         case; {
-            print("Unable to construct operator node, unknow arity for operator %\n", op);
             // 02.16.2025 probably should push an error node here!
+            print("Unable to construct operator node, unknow arity for operator %\n", op);
         }
     }
 

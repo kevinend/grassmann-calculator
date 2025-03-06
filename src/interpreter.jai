@@ -3,8 +3,7 @@
     It combines sectioned symbol table(s) and data pertaining to the currently declared exterior algebra space.
 
     The symbol table is partitioned based on symbol types because this application can have identifiers that represent
-    basis-elements (such as e1, e2, etc), symbolic scalars (a1, b2, etc), interned keywords ("dir","pos", "factor", etc)
-    and normal user-defined symbols.
+    basis-elements (such as e1, e2, etc), symbolic scalars (a1, b2, etc), and user-defined symbols.
 
     The exterior (Grassmann) algebra components in the interpreter are the dimension of the current execution context,
     the list of basis-elements of grades 0 to n and a mapping table from the integer representation of the basis elements
@@ -51,6 +50,26 @@ Basis_Element :: struct {
 	symbol: string;
 }
 
+K_Element_Type :: enum u8 {
+	Origin;
+	Point;
+	Line;
+	Plane;
+	Vector;
+	Bivector;
+	Trivector;
+	Quadvector;
+}
+
+// The K-element represents the result of an evaluated expression.
+// It includes the grade of the element (multi-elements not supported atm), the type like line or bivector, and a pointer to the AST of the simplified expression.
+K_Element :: struct {
+	grade: int;
+	type:  K_Element_Type;
+	ast:  *Ast_Node;
+	// TODO: 03.05.2025 could store the string representation as well.
+}
+
 Exterior_Space :: struct {
     // Grassmann/Exterior-space specific configurations.
 	MAX_DIMENSION :: 6;
@@ -70,9 +89,9 @@ Symbol_Table_Partition :: enum u8 {
 }
 
 Symbol_Table :: struct {
-    basis_1_elements:   [] Basis_Element;
-    scalar_symbols:     Table(string, string);
-    symbols:            Table(string, *Ast_Node);
+    _1_elements:  [] Basis_Element;			// currently declared set of basis 1 elements such as e0,e1,e2,e3
+    _0_elements:  Table(string, string);    // interned strings for scalar symbols like 'a1','b2', etc.; can compare pointers instead of strings during scalar operations.
+    symbols:      Table(string, K_Element); // user-defined symbols generated from expressions like v = e1^e2; where v is the symbol stored in this table.
 }
 
 Interpreter :: struct {
@@ -80,8 +99,33 @@ Interpreter :: struct {
     symbol_table:   Symbol_Table;
 }
 
+// Queries to the symbol table can return different types so do a little subclassing just like the AST nodes.
+Symbol_Kind :: enum u8 {
+	Basis_Element;
+	Scalar;
+	K_Element;
+}
 
-update_exterior_space :: (exterior_space: *Exterior_Space, dimension: int, one_element_symbols: [] string) {
+Symbol :: struct {
+	kind: Symbol_Kind;
+}
+
+Basis_Element_Symbol :: struct {
+	#as using _kind: Symbol;
+	basis_element: *Basis_Element;
+}
+
+Scalar_Symbol :: struct {
+	#as using _kind: Symbol;
+	data: string;
+}
+
+User_Defined_Symbol :: struct {
+	#as using _kind: Symbol;
+	root: *Ast_Node;
+}
+
+update_exterior_space :: (exterior_space: *Exterior_Space, dimension: int, _1_element_symbols: [] string) {
 
 	assert(dimension <= Exterior_Space.MAX_DIMENSION);
 
@@ -106,7 +150,7 @@ update_exterior_space :: (exterior_space: *Exterior_Space, dimension: int, one_e
 
 	for i: 1..num_basis_elements-1 {
 		element        := exterior_space.basis_elements[i];
-		element.symbol =  generate_basis_symbol(element.bits, element.grade, one_element_symbols);
+		element.symbol =  generate_basis_symbol(element.bits, element.grade, _1_element_symbols);
 	}
 	
 	// update the mapping table from an element's bits to the basis element
@@ -120,38 +164,12 @@ update_exterior_space :: (exterior_space: *Exterior_Space, dimension: int, one_e
 	return;
 }
 
-// lookup_symbol()
-// lookup_basis_symbol
+lookup_symbol :: (symbol: string) -> bool, *Symbol {
 
-// lookup_symbol(basis_element) 
-//  Basis_Element
+	found: bool = false;
+	symbol: *Symbol = null;
 
-// Return a Symbol_Info struct
-// cast that result to a
-//  Basis_Symbol
-//  Scalar_Symbol
-//  Keyword_Symbol
-//  Identifier_Symbol
-
-// what does this return a pointer to?
-// instead of doing that could we do it based on type?
-
-lookup_symbol :: (symbol: string, partition: Symbol_Table_Partition ) -> bool, *Basis_Element {
-
-    if partition == .Basis_Elements {
-        // check the basis elements and this returns a symbol_info struct which could have the *AST or whatever 
-    }
-    else
-    if partition == .Scalars {
-
-    }
-    else
-    if partition == .Symbols {
-
-    }
-    else {
-        // unrecognized partition!
-    }
+	return found, symbol;
 /*
 	// Lookup a symbol and check if it is a basis 1-element of the space. If so return it, else return null.
 	found:   bool = false;

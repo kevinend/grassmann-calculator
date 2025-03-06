@@ -38,7 +38,7 @@ Token :: struct {
     character_index_end:   int;
 
     union {
-        text: string;
+        text:  string;
         value: int;
     }
 }

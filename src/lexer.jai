@@ -291,7 +291,7 @@ begins_identifier :: inline (c: u8) -> bool {
 compose_token_identifier_or_keyword :: (lexer: *Lexer) -> token: Token {
 
 	// Returns an identifier or a keyword.
-    // Identifiers can further be recognized by the parser as any of the following:
+    // Identifiers can further be recognized during the symbol resolution pass of the AST as any of the following:
     // 1. Symbols        if followed by an assignment
     // 2. Scalar_Symbols if followed by the scalar multiplication symbol (Ex. a1*e1)
     // 3. Basis_Element  if matches one of the defined 1-element symbols
@@ -338,7 +338,7 @@ compose_token_identifier_or_keyword :: (lexer: *Lexer) -> token: Token {
     }
 
     if token.type == .Identifier {
-        // Identifier is not a keyword. Copy the text for future symbol table lookups.
+        // Copy the text for future symbol table lookups.
         token.text.data = talloc(t.count * size_of(u8));
 	    memcpy(token.text.data, t.data, t.count);
 	    token.text.count = t.count;
