@@ -131,7 +131,7 @@ descend :: (node: *Ast_Node, indent: int = 0) {
     else
     if node.kind == .Scalar {
         scalar := cast(*Scalar_Node)node;
-        print("Scalar value == %\n", scalar.value);
+        print("Scalar (value == %, exponent == %, symbol == %)\n", scalar.value, scalar.exponent, scalar.symbol);
     }
     else
     if node.kind == .Scalar_Expression {

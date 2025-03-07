@@ -32,7 +32,10 @@ main :: () {
     parser:      Parser;
     interpreter: Interpreter;
 
-    update_exterior_space(*interpreter.exterior_space, dimension = 4, _1_element_symbols = .["e0","e1","e2","e3"]);
+    dimension: int = 4;
+
+    update_exterior_space(*interpreter.exterior_space, dimension, .["e0","e1","e2","e3"]);
+    init_symbol_table(*interpreter.symbol_table, interpreter.exterior_space.basis_elements, dimension);
     init_global_parsing_tables();
 
 	input: string;

@@ -89,9 +89,9 @@ Symbol_Table_Partition :: enum u8 {
 }
 
 Symbol_Table :: struct {
+	_0_elements:  Table(u16, string);       // encoded scalar symbols like "1", "a1", "b2" are mapped to their string representations.
     _1_elements:  [] Basis_Element;			// currently declared set of basis 1 elements such as e0,e1,e2,e3
-    _0_elements:  Table(string, string);    // interned strings for scalar symbols like 'a1','b2', etc.; can compare pointers instead of strings during scalar operations.
-    symbols:      Table(string, K_Element); // user-defined symbols generated from expressions like v = e1^e2; where v is the symbol stored in this table.
+    variables:    Table(string, K_Element); // user-defined symbols generated from expressions like v = e1^e2; where v is the symbol stored in this table.
 }
 
 Interpreter :: struct {
@@ -125,6 +125,19 @@ User_Defined_Symbol :: struct {
 	root: *Ast_Node;
 }
 
+init_symbol_table :: (symbol_table: *Symbol_Table, basis_elements: [] Basis_Element, dimension: int) {
+
+	// initialize the scalar (grade-0) and user-variables tables and associate the _1_elements with those from the exterior space.
+	init(*symbol_table._0_elements, 64);
+    init(*symbol_table.variables,   64);
+
+	symbol_table._1_elements.data  = *basis_elements[1];
+	symbol_table._1_elements.count = dimension; 
+
+	return;
+
+}
+
 update_exterior_space :: (exterior_space: *Exterior_Space, dimension: int, _1_element_symbols: [] string) {
 
 	assert(dimension <= Exterior_Space.MAX_DIMENSION);
@@ -149,8 +162,8 @@ update_exterior_space :: (exterior_space: *Exterior_Space, dimension: int, _1_el
 	assert(count == num_basis_elements);
 
 	for i: 1..num_basis_elements-1 {
-		element        := exterior_space.basis_elements[i];
-		element.symbol =  generate_basis_symbol(element.bits, element.grade, _1_element_symbols);
+		element        := *exterior_space.basis_elements[i];
+		element.symbol =   generate_basis_symbol(element.bits, element.grade, _1_element_symbols);
 	}
 	
 	// update the mapping table from an element's bits to the basis element
@@ -162,6 +175,24 @@ update_exterior_space :: (exterior_space: *Exterior_Space, dimension: int, _1_el
 	exterior_space.n_element = *exterior_space.basis_elements[num_basis_elements-1];
 
 	return;
+}
+
+check_against_1_elements :: (symbol_table: *Symbol_Table, symbol: string) -> bool #must, *Basis_Element {
+
+	found:   bool = false;
+	element: *Basis_Element = null;
+
+	_1_elements := symbol_table._1_elements;
+
+	for i: 0.._1_elements.count-1 {
+		if symbol == _1_elements[i].symbol {
+			found = true;
+			element = *_1_elements[i];
+			break;
+		}
+	}
+
+	return found, element;
 }
 
 lookup_symbol :: (symbol: string) -> bool, *Symbol {
@@ -244,17 +275,21 @@ generate_basis_elements :: (
 generate_basis_symbol :: (bits: int, grade: int, _1_element_symbols: [] string) -> string {
 
 	builder: String_Builder;
-	
+
 	wedge := "^";
-	i := 0;
-	n := 0;
-	while n < grade-1 {
+	i 	  := 0;
+	n 	  := 0;
+	
+	while true {
 		if bits & (1 << i) {
-			append(*builder, _1_element_symbols[i]);
-			append(*builder, wedge);
-			n += 1;
+			if n == grade-1 { break; }
+			else {
+				append(*builder, _1_element_symbols[i]);
+				append(*builder, wedge);
+				n += 1;
+			}
 		}
-		
+					
 		i += 1;
 	}
 	append(*builder, _1_element_symbols[i]);

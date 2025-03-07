@@ -167,18 +167,15 @@ new_basis_element_node :: (coefficient: *Scalar_Node, basis_element: *Basis_Elem
     return node;
 }
 
-new_scalar_node :: (value: int, symbol: string) -> *Ast_Node {
+new_scalar_node :: (value: int, exponent: s16, symbol: u16) -> *Ast_Node {
 
     node: *Scalar_Node = alloc(size_of(Scalar_Node));
     assert(node != null);
 
     node.kind = Node_Kind.Scalar;
     node.value    = value;
-    node.exponent = 1;
-    node.symbol   = encode_scalar(symbol);
-
-    // update_symbol_table(*symbol_table, key, value)
-    // update_symbol_table(*symbol_table, node.symbol, symbol, scalars!);
+    node.exponent = exponent;
+    node.symbol   = symbol;
 
     return node;
 }
@@ -241,8 +238,6 @@ new_intrinsic_node :: (type: Intrinsic_Type) -> *Ast_Node {
 
     return node;
 }
-
-#scope_file
 
 encode_scalar :: (s: string) -> u16 {
 

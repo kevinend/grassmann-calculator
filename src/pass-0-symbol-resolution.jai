@@ -14,7 +14,7 @@ step and reports errors in the usage of symbols or operators.
 
 resolve_symbols :: (ast: *Ast, symbol_table: *Symbol_Table) {
 
-    resolve(ast.root, symbol_table);
+    ast.root = resolve(ast.root, symbol_table);
     return;
 }
 
@@ -23,26 +23,47 @@ resolve_symbols :: (ast: *Ast, symbol_table: *Symbol_Table) {
 resolve :: (node: *Ast_Node, symbol_table: *Symbol_Table) -> *Ast_Node {
 
     // Resolve these nodes using the symbol table.
+    result := node;
+
     if node.kind == .Numeric_Literal {
-        return node;
+        literal        := cast(*Numeric_Literal_Node)node;
+        encoded_symbol := encode_scalar("1"); 
+        result          = new_scalar_node(literal.value, 0, encoded_symbol);
+
+        // add the symbol to the symbol table for lookup!
     }
     else
     if node.kind == .Symbol {
-        return node;
+        symbol := cast(*Symbol_Node)node;
+        match, element := check_against_1_elements(symbol_table, symbol.name);
+        if match {
+            encoded_symbol := encode_scalar("1");
+            scalar         := cast(*Scalar_Node)new_scalar_node(1,0,encoded_symbol);
+
+            result := new_basis_element_node(scalar, element);
+        }
+
+        // not sure why we wouldn't do that in the lexer or the parser???
+        // otherwise you need to resolve this symbol and return it
+        // need to determine if it is a basis symbol
+        // need to determine if it is a scalar symbol
     }
 
     // Resolve the children of the operators.
     if node.kind == .Unary_Operator {
         unary_op := cast(*Unary_Operator_Node)node;
         unary_op.rhs = resolve(unary_op.rhs, symbol_table);
+
+        result = unary_op;
     }
     else
     if node.kind == .Binary_Operator {
         binary_op := cast(*Binary_Operator_Node)node;
         binary_op.lhs = resolve(binary_op.lhs, symbol_table);
         binary_op.rhs = resolve(binary_op.rhs, symbol_table);
+
+        result = binary_op;
     }
 
-    return node;
-
+    return result;
 }
