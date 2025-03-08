@@ -20,27 +20,10 @@ K_Element :: struct {
 	// TODO: 03.05.2025 could store the string representation as well.
 }
 
-
-Symbol_Table_Partition :: enum u8 {
-    Scalars;
-    Basis_Elements;
-    Symbols;
-}
-
 Symbol_Table :: struct {
-    variables: Table(string, K_Element); // user-defined symbols generated from expressions like v = e1^e2; where v is the symbol stored in this table.
+    variables: Table(string, K_Element);
 }
 
 Interpreter :: struct {
     symbol_table:   Symbol_Table;
-}
-
-User_Defined_Symbol :: struct {
-	root: *Ast_Node;
-}
-
-lookup_symbol :: (symbol: string) -> bool {
-
-	found: bool = false;
-	return found;
 }

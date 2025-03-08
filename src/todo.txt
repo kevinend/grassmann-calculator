@@ -1,3 +1,0 @@
-TODO:
---Scalar symbols are a giant mess but we have tentative plan on how to handle.
---Scalar_Node represents straight-forward scalars so we can have 3 + 4 which is two scalars
