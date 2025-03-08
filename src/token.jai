@@ -1,6 +1,8 @@
 #scope_export
 
 Token_Type :: enum u32 {
+    
+    Undefined;
 
     Equals;             // prefix = No_Op,           infix_or_postfix = Assignment
     Plus;               // prefix = No_Op,           infix_or_postfix = Addition
@@ -19,7 +21,9 @@ Token_Type :: enum u32 {
 
     Literal;
     Identifier;
-    Number;
+    Basis_Element;
+    Scalar;
+
     Keyword_Direction;
     Keyword_Position;
     Keyword_Basis;
@@ -38,7 +42,8 @@ Token :: struct {
     character_index_end:   int;
 
     union {
-        text: string;
-        value: int;
+        text:    string;
+        basis:  *Basis_Element;
+        scalar:  Scalar;
     }
 }
