@@ -71,10 +71,6 @@ main :: () {
 			continue;
 		}
 
-        for i: 0..space.scalar_symbols.hashes.count-1 {
-            print("Hash == %, Symbol == %\n", space.scalar_symbols.hashes[i], space.scalar_symbols.symbols[i]);
-        }
-
         ast := parse(*parser, tokens);
         descend(ast.root);
 
