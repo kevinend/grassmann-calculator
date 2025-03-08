@@ -40,7 +40,6 @@
 */
 
 Node_Kind :: enum u8 {
-    Numeric_Literal;
     Symbol;
     Basis_Element;
     Scalar;        
@@ -56,11 +55,6 @@ Ast_Node :: struct {
 
 Ast :: struct {
     root: *Ast_Node;
-}
-
-Numeric_Literal_Node :: struct {
-    #as using _kind: Ast_Node;
-    value: int;
 }
 
 Symbol_Node :: struct {
@@ -82,12 +76,12 @@ Scalar_Node :: struct {
 
 Term :: struct {
     multiples: int;
-    factors: [..] Scalar; // TODO: this should be fixed based on the basis of the space
+    factors: [Exterior_Space.MAX_DIMENSION] Scalar;
 }
 
 Scalar_Expression_Node :: struct {
     #as using _kind: Ast_Node;
-    terms: [..] Term;    // TODO: this should be a list of terms!
+    terms: List(Term);
 }
 
 Unary_Operator_Node :: struct {
