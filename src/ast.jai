@@ -40,7 +40,6 @@
 */
 
 Node_Kind :: enum u8 {
-    Numeric_Literal;
     Symbol;
     Basis_Element;
     Scalar;        
@@ -56,11 +55,6 @@ Ast_Node :: struct {
 
 Ast :: struct {
     root: *Ast_Node;
-}
-
-Numeric_Literal_Node :: struct {
-    #as using _kind: Ast_Node;
-    value: int;
 }
 
 Symbol_Node :: struct {

@@ -3,16 +3,65 @@
 main :: () {
 
     {
-        t: string = "a01";
-        while true {
+        Node_Kind :: enum u8 {
+            Symbol;
+            Basis_Element;
+            Scalar;        
+            Scalar_Expression;
+            Unary_Operator;     // prefix operators
+            Binary_Operator;    // infix/postfix operators
+            Intrinsic;
+        }
 
-            text: string;
-            text.data = alloc(t.count);
-            memcpy(text.data, t.data, t.count);
-            text.count = t.count;
+        Ast_Node :: struct {
+            kind: Node_Kind;
+        }
 
-            print("Address == %\n", text.data);
-            
+        Scalar :: struct {
+            value:       float;
+            exponent:    s16;
+            symbol_hash: u16;
+        }
+
+        Term :: struct {
+            multiples:   int;
+            num_factors: u16;
+            next_factor: u16;
+            factors: [6] Scalar; // TODO: this should be fixed based on the basis of the space
+        }
+
+        print("Size of term == %\n", size_of(Term));
+
+        Scalar_Expression_Node :: struct {
+            #as using _kind: Ast_Node;
+            terms: *List(Term);
+        }
+
+        // say we add 3 + a1 this generates two terms
+        factor1: Scalar = .{ value = 3, exponent = 1, symbol_hash = 1};
+        term1:   Term;
+        term1.factors[term1.next_factor] = factor1;
+        term1.num_factors += 1;
+        term1.next_factor += 1;
+
+        factor2: Scalar = .{ value = 1, exponent = 1, symbol_hash = 11};
+        term2:   Term;
+        term2.factors[term2.next_factor] = factor2;
+        term2.num_factors += 1;
+        term2.next_factor += 1;
+
+        node: Scalar_Expression_Node;
+        node.terms = list_new(Term);
+        list_append(node.terms, term1);
+        list_append(node.terms, term2);
+
+        c := list_head(node.terms);
+        while c != null {
+            term := c.value;
+            for i: 0..term.num_factors-1 {
+                print("Factor == %\n", term.factors[i]);
+            }
+            c = c.next;
         }
     }
 
@@ -142,3 +191,4 @@ main :: () {
 #scope_file
 #import "Basic";
 #import "Hash_Table";
+#load "list.jai";
