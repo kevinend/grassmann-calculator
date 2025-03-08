@@ -1,8 +1,8 @@
 /*
     File implements a singly linked list data structure.
 
-    Elements stored within the list are shallow copies so the caller is responsible for freeing any memory associated
-    with the prepended/appended elements.
+    Values stored within the list are shallow copies so the caller is responsible for freeing any memory associated
+    with the values contained in the list.
 */
 
 #scope_export
