@@ -92,13 +92,6 @@ generate_tokens :: (lexer: *Lexer, input: string) -> [] Token {
 			continue;
 		}
 
-		/* compose_token_ident_keyword_basis_element_or_scalar(lexer);
-		if begins_character_sequence(c) {
-			symbol = get_symbol(lexer);
-			token  = compose_token_symbol()
-		}
-		*/
-
 		if begins_identifier(c) {
 			token = compose_token_identifier_keyword_basis_element_or_scalar(lexer);
 			add_token(lexer, token);
