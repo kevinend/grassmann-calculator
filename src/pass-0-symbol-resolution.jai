@@ -22,31 +22,25 @@ resolve_symbols :: (ast: *Ast, symbol_table: *Symbol_Table) {
 
 resolve :: (node: *Ast_Node, symbol_table: *Symbol_Table) -> *Ast_Node {
 
-    // Resolve these nodes using the symbol table.
     result := node;
 
     if node.kind == .Numeric_Literal {
-        literal        := cast(*Numeric_Literal_Node)node;
-        encoded_symbol := encode_scalar("1"); 
-        result          = new_scalar_node(literal.value, 0, encoded_symbol);
-
+        result = node;
         // add the symbol to the symbol table for lookup!
     }
     else
     if node.kind == .Symbol {
-        symbol := cast(*Symbol_Node)node;
-        match, element := check_against_1_elements(symbol_table, symbol.name);
-        if match {
-            encoded_symbol := encode_scalar("1");
-            scalar         := cast(*Scalar_Node)new_scalar_node(1,0,encoded_symbol);
+        result = node;
+        /*
+            symbol := cast(*Symbol_Node)node;
+            match, element := check_against_1_elements(symbol.name);
+            if match {
+                encoded_symbol := encode_scalar("1");
+                scalar         := cast(*Scalar_Node)new_scalar_node(1,0,encoded_symbol);
 
-            result := new_basis_element_node(scalar, element);
-        }
-
-        // not sure why we wouldn't do that in the lexer or the parser???
-        // otherwise you need to resolve this symbol and return it
-        // need to determine if it is a basis symbol
-        // need to determine if it is a scalar symbol
+                result = new_basis_element_node(scalar, element);
+            }
+        */
     }
 
     // Resolve the children of the operators.

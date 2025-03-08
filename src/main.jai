@@ -22,6 +22,13 @@
         Which is a [u8|index] which is another u8 or a u16
 */
 
+
+// the symbol table is literally just for symbols that the user defines and has an update symbol and a lookup symbol function.
+// this is what i am going to go with i think, makes sense to me. Do this as early as possible and save yourself the headaches later.
+//
+// check the identifiers that come through and see if they fall into the whatever, you store the symbol
+// then in the parser you create a scalar node which is a 
+
 main :: () {
 
     USER_PROMPT :: "> ";
@@ -34,13 +41,12 @@ main :: () {
 
     dimension: int = 4;
 
-    update_exterior_space(*interpreter.exterior_space, dimension, .["e0","e1","e2","e3"]);
-    init_symbol_table(*interpreter.symbol_table, interpreter.exterior_space.basis_elements, dimension);
+    update_exterior_space(dimension, .["e0","e1","e2","e3"]);
     init_global_parsing_tables();
 
 	input: string;
 	while !quit {
-        reset_temporary_storage();
+        
 
 		print( "%", USER_PROMPT );
 		success, input = read_line();
@@ -65,13 +71,19 @@ main :: () {
 			continue;
 		}
 
+        for i: 0..space.scalar_symbols.hashes.count-1 {
+            print("Hash == %, Symbol == %\n", space.scalar_symbols.hashes[i], space.scalar_symbols.symbols[i]);
+        }
+
         ast := parse(*parser, tokens);
         print("Before resolution\n" );
         descend(ast.root);
         print("\n");
-        resolve_symbols(*ast, *interpreter.symbol_table);
-        print("After resolution\n" );
-        descend(ast.root);
+     //   resolve_symbols(*ast, *interpreter.symbol_table);
+     //   print("After resolution\n" );
+     //   descend(ast.root);
+
+        reset_temporary_storage();
     }
 		
 }

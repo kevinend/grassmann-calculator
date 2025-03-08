@@ -37,19 +37,6 @@
     factors. Obviously the memory usage is much more substantial (especially when the list of terms or factors is sparse) and the resulting calculations
     for addition and multiplication require nested loops. The waste felt substantial enough to split these cases into two unique representations.
 
- 
-    On the Scalar Type's 'symbol' field:
-
-    A scalar can either be a value like 3 or a symbol like 'a1'. The 'Scalar' type has a field called 'symbol' which is defined 
-    to be either "1" (for values) or a single leading character followed by up to 3 digits (ex. a1, a01, a001, A1, etc.).
-
-    Instead of the symbol field being a string or a pointer to an interned string the symbol is encoded as a u16.
-    That u16 is stored in a hashtable that uses the u16 as a key and returns the string representation of the symbol
-    when we need to print the scalar to the end-user. All calculations use the u16 representation.
-
-    For some reason using a 16-byte string, or an 8-byte pointer to a string seemed too wasteful when the symbol can
-    be easily encoded into a 2-byte short. Currently the scalar type is 16 bytes but could be scaled down to 8 if the value
-    and exponent types are further constrained but that seemed unnecessary at this time.
 */
 
 Node_Kind :: enum u8 {
@@ -86,12 +73,6 @@ Basis_Element_Node :: struct {
 	
 	coefficient: *Ast_Node;	        // scalar or scalar expression
 	basis:       *Basis_Element;
-}
-
-Scalar :: struct {
-    value:    int;
-    exponent: s16;
-    symbol:   u16;
 }
 
 Scalar_Node :: struct {
@@ -137,7 +118,7 @@ Intrinsic_Node :: struct {
 
 new_numeric_literal_node :: (value: int) -> *Ast_Node {
 
-    node: *Numeric_Literal_Node = alloc(size_of(Numeric_Literal_Node));
+    node: *Numeric_Literal_Node = talloc(size_of(Numeric_Literal_Node));
     assert(node != null);
 
     node.kind = Node_Kind.Numeric_Literal;
@@ -147,7 +128,7 @@ new_numeric_literal_node :: (value: int) -> *Ast_Node {
 
 new_symbol_node :: (name: string) -> *Ast_Node {
 
-    node: *Symbol_Node = alloc(size_of(Symbol_Node));
+    node: *Symbol_Node = talloc(size_of(Symbol_Node));
     assert(node != null);
 
     node.kind = Node_Kind.Symbol;
@@ -155,9 +136,9 @@ new_symbol_node :: (name: string) -> *Ast_Node {
     return node;
 }
 
-new_basis_element_node :: (coefficient: *Scalar_Node, basis_element: *Basis_Element) -> *Ast_Node {
+new_basis_element_node :: (coefficient: *Ast_Node, basis_element: *Basis_Element) -> *Ast_Node {
 
-    node: *Basis_Element_Node = alloc(size_of(Basis_Element_Node));
+    node: *Basis_Element_Node = talloc(size_of(Basis_Element_Node));
     assert(node != null);
 
     node.kind        = Node_Kind.Basis_Element;
@@ -167,22 +148,20 @@ new_basis_element_node :: (coefficient: *Scalar_Node, basis_element: *Basis_Elem
     return node;
 }
 
-new_scalar_node :: (value: int, exponent: s16, symbol: u16) -> *Ast_Node {
+new_scalar_node :: (scalar: Scalar) -> *Ast_Node {
 
-    node: *Scalar_Node = alloc(size_of(Scalar_Node));
+    node: *Scalar_Node = talloc(size_of(Scalar_Node));
     assert(node != null);
 
     node.kind = Node_Kind.Scalar;
-    node.value    = value;
-    node.exponent = exponent;
-    node.symbol   = symbol;
+    node.scalar = scalar;
 
     return node;
 }
 
 new_scalar_expression_node :: (factor: Scalar) -> *Ast_Node {
 
-    node: *Scalar_Expression_Node = alloc(size_of(Scalar_Expression_Node));
+    node: *Scalar_Expression_Node = talloc(size_of(Scalar_Expression_Node));
     assert(node != null);
 
     // Takes a scalar, creates a term with that single factor and returns it.
@@ -205,7 +184,7 @@ new_scalar_expression_node :: (factor: Scalar) -> *Ast_Node {
 
 new_unary_operator_node :: (op: Operator, rhs: *Ast_Node) -> *Ast_Node {
 
-    node: *Unary_Operator_Node = alloc(size_of(Unary_Operator_Node));
+    node: *Unary_Operator_Node = talloc(size_of(Unary_Operator_Node));
     if !node { print( "Error!\n" ); }
 
     node.kind = Node_Kind.Unary_Operator;
@@ -217,7 +196,7 @@ new_unary_operator_node :: (op: Operator, rhs: *Ast_Node) -> *Ast_Node {
 
 new_binary_operator_node :: (lhs: *Ast_Node, op: Operator, rhs: *Ast_Node) -> *Ast_Node {
 
-    node: *Binary_Operator_Node = alloc(size_of(Binary_Operator_Node));
+    node: *Binary_Operator_Node = talloc(size_of(Binary_Operator_Node));
     if !node { print("Error!\n" );}
 
     node.kind = Node_Kind.Binary_Operator;
@@ -230,60 +209,11 @@ new_binary_operator_node :: (lhs: *Ast_Node, op: Operator, rhs: *Ast_Node) -> *A
 
 new_intrinsic_node :: (type: Intrinsic_Type) -> *Ast_Node {
 
-    node: *Intrinsic_Node = alloc(size_of(Intrinsic_Node));
+    node: *Intrinsic_Node = talloc(size_of(Intrinsic_Node));
     if !node { print("Error!\n"); }
 
     node.kind = Node_Kind.Intrinsic;
     node.type = type;
 
     return node;
-}
-
-encode_scalar :: (s: string) -> u16 {
-
-    // Format of a scalar symbol is an alphabet character followed by up to 3 digits
-    // The smallest number is a000 and the largest is Z999.
-    // We map a-z to the numbers 1-26 and A-Z as 26-53.
-    // As long as we keep this range we can fit all the scalar symbols hashes into u16s.
-    //
-    // The hash value zero (0) is reserved for the symbol "1" which is used to represent pure numbers.
-    //
-    // To build up the number we start at end the end of the string and parse digits as powers of 10
-    // then convert the character and add its value.
-
-    assert(s[0] == #char "1" || (s[0] >= #char "a" && s[0] <= #char "z") || (s[0] >= #char "A" && s[0] <= #char "Z"));
-    assert(s.count <= 4);
-
-    if s[0] == #char "1" {
-        return 1;
-    }
-
-    i := s.count-1;
-
-    value:  u16;
-    powers: u16 = 1;
-    digit:  u16;
-    while i > 0 {
-        digit  = s[i] - #char "0";
-        digit  *= powers;
-        value  += digit;
-
-        powers *= 10;
-        
-        i-= 1;
-    }
-
-    if s[0] >= #char "a" && s[0] <= #char "z" {
-        digit  = s[i] - #char "a" + 1;
-        digit *= powers;
-        value += digit;
-    }
-    else {
-        digit  = (s[i] - #char "A") + 27;
-        digit *= powers;
-        value += digit; 
-    }
-
-    assert( value <= 65535 );
-    return value;
 }

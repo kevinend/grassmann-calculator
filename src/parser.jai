@@ -26,11 +26,6 @@ Parser :: struct {
 
 parse :: (parser: *Parser, tokens: [] Token) -> Ast {
 
-    // Only certain allocations need to persist over the lifetime of the application.
-    // The AST is not one of them. If a new symbol is defined as part of an expression then the symbol table will be updated
-    // on the heap otherwise on each execution of the expression loop we can destroy all previous node allocations.
-
-    context.allocator = temp;
     reset_parser(parser, tokens);
    
     ast: Ast;
@@ -126,12 +121,13 @@ descend :: (node: *Ast_Node, indent: int = 0) {
     else
     if node.kind == .Basis_Element {
         element := cast(*Basis_Element_Node)node;
-       // print("Basis == %\n", element.name);
+        basis   := element.basis;
+        print("Basis Element (grade == %, bits == %, symbol_hash == %)\n", basis.grade, basis.bits, basis.symbol);
     }
     else
     if node.kind == .Scalar {
         scalar := cast(*Scalar_Node)node;
-        print("Scalar (value == %, exponent == %, symbol == %)\n", scalar.value, scalar.exponent, scalar.symbol);
+        print("Scalar (value == %, exponent == %, symbol_hash == %)\n", scalar.value, scalar.exponent, scalar.symbol_hash);
     }
     else
     if node.kind == .Scalar_Expression {
@@ -139,8 +135,8 @@ descend :: (node: *Ast_Node, indent: int = 0) {
         for term: scalar.terms {
             print("Multiple == %", term.multiples);
             for factor: term.factors {
-                if factor.symbol != 1 {
-                    print("%", factor.symbol);
+                if factor.symbol_hash != 1 {
+                    print("%", factor.symbol_hash);
                 }
             }
         }
@@ -203,13 +199,21 @@ new_operand :: (token: Token, operands: *Stack(*Ast_Node)) {
 
     node: *Ast_Node = null;
 
+    if token.type == .Scalar {
+        node = new_scalar_node(token.scalar);
+    }
+    else 
+    if token.type == .Basis_Element {
+        scalar: Scalar = .{ value = 1, exponent = 1, symbol_hash = hash_scalar_symbol("1") };
+        scalar_node   :=  new_scalar_node(scalar);
+
+        node = new_basis_element_node(scalar_node, token.basis);
+    }
+    else
     if token.type == .Identifier {
         node = new_symbol_node(token.text);
     }
     else
-    if token.type == .Number {
-        node = new_numeric_literal_node(token.value);
-    }
     if token.type == .Keyword_Direction {
         node = new_intrinsic_node(.Direction);
     }

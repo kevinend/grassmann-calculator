@@ -2,6 +2,20 @@
 
 main :: () {
 
+    {
+        t: string = "a01";
+        while true {
+
+            text: string;
+            text.data = alloc(t.count);
+            memcpy(text.data, t.data, t.count);
+            text.count = t.count;
+
+            print("Address == %\n", text.data);
+            
+        }
+    }
+
     // These are the actual test cases.
     // TODO: Figure out how to test these out! and run these automated on a build!
     {
@@ -91,7 +105,7 @@ main :: () {
         s7: string = "a01";
         s9: string = "a11";
         s10: string = "a12";
-        s11: string = "Z99";
+        s11: string = "Z999";
 
         print("Encoded s1 == %\n", encode_scalar(s1));
         print("Encoded s2 == %\n", encode_scalar(s2));

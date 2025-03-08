@@ -18,6 +18,7 @@ build :: () {
 
     add_build_file("./main.jai",                     w);
     add_build_file("./input.jai",                    w);
+    add_build_file("./exterior-space.jai",           w);
     add_build_file("./token.jai",                    w);
     add_build_file("./lexer.jai",                    w);
     add_build_file("./ast.jai",                      w);
