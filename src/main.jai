@@ -41,7 +41,6 @@ main :: () {
 	input: string;
 	while !quit {
         
-
 		print( "%", USER_PROMPT );
 		success, input = read_line();
         if !success {

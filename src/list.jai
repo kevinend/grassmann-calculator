@@ -13,22 +13,9 @@ List_Node :: struct (T: Type) {
 }
 
 List :: struct (T: Type) {
-    count: int;
-    head:  *List_Node(T);
-    tail:  *List_Node(T);
-}
-
-list_new :: ($T: Type) -> list: *List(T) {
-
-    // Allocates new list instance whose elements are of type T.
-    list: *List(T) = alloc(size_of(List(T)));
-    assert( list != null );
-
-    list.count = 0;
-    list.head = null;
-    list.tail = null;
-
-    return list;
+    count: int            = 0;
+    head:  *List_Node(T)  = null;
+    tail:  *List_Node(T)  = null;
 }
 
 list_is_empty :: (list: *List($T)) -> bool {
@@ -91,34 +78,34 @@ list_prepend :: (list: *List($T), value: T) {
     list.count += 1;
 }
 
-list_head :: (list: *List($T)) -> *List_Node(T) {
+list_head :: (list: List($T)) -> *List_Node(T) {
     
     // Assumes the list is non-empty and returns the address of the head node.
-    assert(list != null);
+    assert(list.count != 0);
     return list.head;
 }
 
-list_tail :: (list: *List($T)) -> *List_Node(T) {
+list_tail :: (list: List($T)) -> *List_Node(T) {
 
     // Assumes the list is non-empty and returns the address of the tail node.
-    assert(list != null);
+    assert(list.count != 0);
     return list.tail;
 }
 
-list_count :: (list: *List($T)) -> int {
+list_count :: (list: List($T)) -> int {
     
     // Return the number of nodes currently in the List.
     assert(list != null);
     return list.count;
 }
 
-list_deallocate :: (list: **List($T)) {
+list_deallocate :: (list: *List($T)) {
 
     // Free the memory allocated provisioned for the list nodes and then the list instance.
     // Called 'deallocate' to avoid name collision with the 'Basic' libraries 'free' function.
-    assert((stack.*) != null);
+    assert(list != null);
 
-    c := (list.*).head;
+    c := list.head;
     n := c;
     while c != null {
        n = c.next;
@@ -126,9 +113,7 @@ list_deallocate :: (list: **List($T)) {
        c = n;
     }
 
-    free((list.*));
-
-    (list.*) = null; 
+    list = null;
     return;
 }
 

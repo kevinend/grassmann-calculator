@@ -34,8 +34,16 @@ main :: () {
 
         Scalar_Expression_Node :: struct {
             #as using _kind: Ast_Node;
-            terms: *List(Term);
+            terms: List(Term);
         }
+
+        // with this we generate the minimal number of whatever
+        // i kind of what this to return a list, not a pointer to list so we can embed it
+        // then terms is a List(Term)
+
+        // List(Term) which means it has head, tail and whatever else in there
+        // just points directly to the list instead of being indirect.
+        // don't even have to initialize it, just use it and it will figure out what to do, since these are all zeroes
 
         // say we add 3 + a1 this generates two terms
         factor1: Scalar = .{ value = 3, exponent = 1, symbol_hash = 1};
@@ -51,17 +59,19 @@ main :: () {
         term2.next_factor += 1;
 
         node: Scalar_Expression_Node;
-        node.terms = list_new(Term);
-        list_append(node.terms, term1);
-        list_append(node.terms, term2);
+        list_append(*node.terms, term1);
+        list_append(*node.terms, term2);
 
         c := list_head(node.terms);
+        i := 0;
         while c != null {
             term := c.value;
+            print("Printing term %\n", i);
             for i: 0..term.num_factors-1 {
                 print("Factor == %\n", term.factors[i]);
             }
             c = c.next;
+            i += 1;
         }
     }
 
