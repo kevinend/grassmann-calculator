@@ -122,7 +122,7 @@ descend :: (node: *Ast_Node, indent: int = 0) {
     if node.kind == .Basis_Element {
         element := cast(*Basis_Element_Node)node;
         basis   := element.basis;
-        print("Basis Element (grade == %, bits == %, symbol_hash == %)\n", basis.grade, basis.bits, basis.symbol);
+        print("Basis Element (grade == %, bits == %, symbol == %)\n", basis.grade, basis.bits, basis.symbol);
     }
     else
     if node.kind == .Scalar {

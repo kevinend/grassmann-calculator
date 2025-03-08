@@ -82,12 +82,12 @@ Scalar_Node :: struct {
 
 Term :: struct {
     multiples: int;
-    factors: [..] Scalar;
+    factors: [..] Scalar; // TODO: this should be fixed based on the basis of the space
 }
 
 Scalar_Expression_Node :: struct {
     #as using _kind: Ast_Node;
-    terms: [..] Term;
+    terms: [..] Term;    // TODO: this should be a list of terms!
 }
 
 Unary_Operator_Node :: struct {

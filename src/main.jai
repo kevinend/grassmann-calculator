@@ -76,12 +76,7 @@ main :: () {
         }
 
         ast := parse(*parser, tokens);
-        print("Before resolution\n" );
         descend(ast.root);
-        print("\n");
-     //   resolve_symbols(*ast, *interpreter.symbol_table);
-     //   print("After resolution\n" );
-     //   descend(ast.root);
 
         reset_temporary_storage();
     }
