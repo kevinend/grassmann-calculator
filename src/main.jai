@@ -4,7 +4,7 @@
     High-Level steps of the application
         // Lexer             --> tokens
         // Parser            --> AST with operators, keywords and symbols
-        // Symbol Resolution --> Pass over the tree and replace all symbols with their basis, scalar or whatever node types
+        // Symbol Resolution --> Pass over the tree and replace all identifiers with their stored AST values.
         // Semantic Pass     --> Pass over the tree again and make sure that scalar symbols aren't being assigned values, that scalars are only used in scalar multiplication, etc.
         // Expand            --> Distribute grassmann products over addition and subtraction
         // Simplify          --> Evaluate the expression, generate the K-Element represented by the user, store if an assignment
@@ -22,12 +22,6 @@
         Which is a [u8|index] which is another u8 or a u16
 */
 
-
-// the symbol table is literally just for symbols that the user defines and has an update symbol and a lookup symbol function.
-// this is what i am going to go with i think, makes sense to me. Do this as early as possible and save yourself the headaches later.
-//
-// check the identifiers that come through and see if they fall into the whatever, you store the symbol
-// then in the parser you create a scalar node which is a 
 
 main :: () {
 
