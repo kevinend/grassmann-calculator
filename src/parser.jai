@@ -96,7 +96,6 @@ parse :: (parser: *Parser, tokens: [] Token) -> Ast {
 descend :: (node: *Ast_Node, indent: int = 0) {
 
     // Utility function to print AST's until the interpreter is up and working!
-
     if node == null {
         return;
     }
@@ -111,14 +110,9 @@ descend :: (node: *Ast_Node, indent: int = 0) {
         descend(operator_node.rhs, indent + 2);
     }
     else
-    if node.kind == .Numeric_Literal {
-        literal := cast(*Numeric_Literal_Node)node;
-        print("Literal == %\n", literal.value);
-    }
-    else
-    if node.kind == .Symbol {
-        symbol := cast(*Symbol_Node)node;
-        print("Symbol == %\n", symbol.name);
+    if node.kind == .Identifier {
+        identifier := cast(*Identifier_Node)node;
+        print("Identifier == %\n", identifier.name);
     }
     else
     if node.kind == .Basis_Element {
@@ -133,14 +127,16 @@ descend :: (node: *Ast_Node, indent: int = 0) {
     }
     else
     if node.kind == .Scalar_Expression {
-        scalar := cast(*Scalar_Expression_Node)node;
-        for term: scalar.terms {
-            print("Multiple == %", term.multiples);
-            for factor: term.factors {
-                if factor.symbol_hash != 1 {
-                    print("%", factor.symbol_hash);
-                }
+        expression := cast(*Scalar_Expression_Node)node;
+        term       := *expression.term;
+        i := 0;
+        while term != null {
+            print("Printing term %\n", i);
+            for i: 0..term.num_factors-1 {
+                print("Factor == %\n", term.factors[i]);
             }
+            term = term.next;
+            i += 1;
         }
         print("\n");
     }
@@ -219,7 +215,7 @@ new_operand :: (token: Token, operands: *Stack(*Ast_Node)) {
     }
     else
     if token.type == .Identifier {
-        node = new_symbol_node(token.text);
+        node = new_identifier_node(token.text);
     }
     else
     if token.type == .Keyword_Direction {

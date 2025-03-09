@@ -24,9 +24,8 @@ build :: () {
     add_build_file("./ast.jai",                      w);
     add_build_file("./operators.jai",                w);
     add_build_file("./parser.jai",                   w);
-    add_build_file("./pass-0-symbol-resolution.jai", w);
+    add_build_file("./symbol-resolution.jai",        w);
     add_build_file("./stack.jai",                    w);
-    add_build_file("./list.jai",                     w);
     add_build_file("./interpreter.jai",              w);
 
     // The dc (during compile) option tells the compiler not to emit output for this metaprogram file while building our application.
