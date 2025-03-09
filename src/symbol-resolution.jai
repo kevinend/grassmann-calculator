@@ -1,8 +1,8 @@
 /*
-    The purpose of symbol resolution is to construct symbol table entries for new symbol nodes and substitute
-    existing symbol's into the AST. The only node types that need substituted are those used in the expression context
-    (that is not on the lhs of an assignment operator).
-    
+    Symbol resolution in this application is very simple.
+    It looks at any identifier nodes in an expression context and substitutes their previously calcuated value
+    like an interpreter would do.
+
     This pass does *not* validate the semantics of the AST after resolution. The semantic pass occurs after this
     step and reports errors in the usage of symbols or operators.
 */
@@ -20,7 +20,7 @@ resolve_symbols :: (ast: *Ast, symbol_table: *Symbol_Table) {
 resolve :: (node: *Ast_Node, symbol_table: *Symbol_Table) -> *Ast_Node {
 
     result := node;
-    if node.kind == .Symbol {
+    if node.kind == .Identifier {
         // resolve the symbol if it used in an expression context, that is that it's parent is not the assignment operator!
         result = node;
     }
