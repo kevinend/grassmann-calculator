@@ -14,23 +14,11 @@ Stack_Element :: struct (T: Type) {
 }
 
 Stack :: struct (T: Type) {
-    count: int;
-    head:  *Stack_Element(T);
+    count: int = 0;
+    head:  *Stack_Element(T) = null;
 }
 
-stack_new :: ($T: Type) -> stack: *Stack(T) {
-
-    // Allocates new stack instance whose elements are of type T.
-    stack: *Stack(T) = alloc(size_of(Stack(T)));
-    assert( stack != null );
-
-    stack.count = 0;
-    stack.head = null;
-
-    return stack;
-}
-
-stack_is_empty :: (stack: *Stack($T)) -> bool {
+stack_is_empty :: (stack: Stack($T)) -> bool {
     
     // Returns true if the stack contains no elements;
     return stack.count == 0;
@@ -74,39 +62,35 @@ stack_pop :: (stack: *Stack($T)) -> T {
     return value;
 }
 
-stack_peek :: (stack: *Stack($T)) -> T {
+stack_peek :: (stack: Stack($T)) -> T {
 
     // Returns the head of the stack. The caller should ensure the stack is not empty before calling.
-    assert(stack != null);
+    assert(stack.count != 0);
     return stack.head.value;
     
 }
 
-stack_count :: (stack: *Stack($T)) -> int {
+stack_count :: (stack: Stack($T)) -> int {
     
     // Return the number of elements currently in the Stack.
-
-    assert(stack != null);
     return stack.count;
 }
 
-stack_deallocate :: (stack: **Stack($T)) {
+stack_deallocate :: (stack: *Stack($T)) {
 
     // Free the memory allocated provisioned for the stack elements and then the stack instance.
     // Called 'deallocate' to avoid name collision with the 'Basic' libraries 'free' function.
-    assert((stack.*) != null);
+    assert(stack != null);
 
-    c := (stack.*).head;
+    c := stack.head;
     n := c;
     while c != null {
        n = c.next;
-       free( c );
+       free(c);
        c = n;
     }
 
-    free((stack.*));
-
-    (stack.*) = null; 
+    stack = null; 
     return;
 }
 
