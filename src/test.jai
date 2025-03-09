@@ -90,12 +90,12 @@ main :: () {
             5*4^3
             T = v!!
             -!v! should parse as (-(!v))!
-            L = dir(p|v!, 4)          // this doesn't look right!
-            p = 4*e1; // WORKED
-            pos(arg1); // WORKED!
+            L = dir(p|v!, 4)          
+            p = 4*e1;
+            pos(arg1);
             pos(arg1,arg2);
-            pos(arg1,arg2,arg3) ; 02.23.2025 this no workie either!
-            dir(arg1,(arg2+arg3));  02.23.2025 This doesn't work anymore; wonder if that was what the other logic was about? with the open paren in the infix section?
+            pos(arg1,arg2,arg3) ;
+            dir(arg1,(arg2+arg3));
             4*e1|e2 + e1|5*e3
             (-a + b) * (c + d)
             3 * 4 + 5 * 7

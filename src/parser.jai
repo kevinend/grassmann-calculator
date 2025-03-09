@@ -124,8 +124,9 @@ parse_expression :: (parser: *Parser) -> Ast {
     using parser; // short-hand so we don't have to say parser.field all the time.
 
     token := peek_token(parser);
-    while token.type != .Semicolon {
+    while true {
         token = consume_token(parser);
+        if token.type == .Semicolon { break; }
         
         if parser.mode == .Prefix {
             op := prefix_token_to_operator[token.type];
@@ -140,10 +141,14 @@ parse_expression :: (parser: *Parser) -> Ast {
         else
         if parser.mode == .Infix_or_Postfix {
             op := nonprefix_token_to_operator[token.type];
-            if !op { continue; } 
-            // ^^02.23.2025  we should only continue if this is a semicolon, otherwise we could detect errors like back to back identifiers (missing operators) and other error conditions
+            print("Op == %\n", op);
+            if !op { 
+                // so this would be "identifier identifier"
+                // we also want to catch like "identifier operator" that isn't postfix for some reason "e1-" crashed the stack. need to investigate
+                print("Error!\n"); 
+                continue; 
+            }
 
-            
             if op == .Right_Complement {
                 // Post-fix operator that needs to stay infix or postfix mode since not expecting another prefix operator or operand.
                 apply_operators_with_greater_precedence_then_push(op, *operators, *operands);
@@ -163,6 +168,8 @@ parse_expression :: (parser: *Parser) -> Ast {
         }
     }
 
+       
+
     // Apply the remaining operators left on the stack returning the AST as the last operand node on successful parse.
     while !stack_is_empty(operators) {
         op := stack_pop(*operators);
@@ -170,6 +177,10 @@ parse_expression :: (parser: *Parser) -> Ast {
             print("Unmatched parentheses found in expression!");
             break;
         }
+        
+        // TODO: Robustness here!
+        // this would be cases where the infix operator is missing an argument if this fails here!
+        // we need to check in the arity that we have what we need!
         new_operand(op, *operands);
     }
 
