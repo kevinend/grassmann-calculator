@@ -40,7 +40,8 @@
 */
 
 Node_Kind :: enum u8 {
-    Symbol;
+    Identifier;
+    Variable;
     Basis_Element;
     Scalar;        
     Scalar_Expression;
@@ -57,7 +58,13 @@ Ast :: struct {
     root: *Ast_Node;
 }
 
-Symbol_Node :: struct {
+Identifier_Node :: struct {
+    #as using _kind: Ast_Node;
+    name: string;
+}
+
+Variable_Node :: struct {
+    // Identifier nodes are converted to this node type during symbol resolution.
     #as using _kind: Ast_Node;
     name: string;
 }
@@ -75,13 +82,16 @@ Scalar_Node :: struct {
 }
 
 Term :: struct {
-    multiples: int;
-    factors: [Exterior_Space.MAX_DIMENSION] Scalar;
+    multiples:   s32;
+    num_factors: u32;
+    factors:     [Exterior_Space.MAX_DIMENSION] Scalar;
+    next:        *Term;
 }
 
 Scalar_Expression_Node :: struct {
     #as using _kind: Ast_Node;
-    terms: List(Term);
+    num_terms: u32;
+    term: Term;
 }
 
 Unary_Operator_Node :: struct {
@@ -110,22 +120,12 @@ Intrinsic_Node :: struct {
     type: Intrinsic_Type;
 }
 
-new_numeric_literal_node :: (value: int) -> *Ast_Node {
+new_identifier_node :: (name: string) -> *Ast_Node {
 
-    node: *Numeric_Literal_Node = talloc(size_of(Numeric_Literal_Node));
+    node: *Identifier_Node = talloc(size_of(Identifier_Node));
     assert(node != null);
 
-    node.kind = Node_Kind.Numeric_Literal;
-    node.value = value;
-    return node;
-}
-
-new_symbol_node :: (name: string) -> *Ast_Node {
-
-    node: *Symbol_Node = talloc(size_of(Symbol_Node));
-    assert(node != null);
-
-    node.kind = Node_Kind.Symbol;
+    node.kind = Node_Kind.Identifier;
     node.name = name;
     return node;
 }
@@ -158,20 +158,12 @@ new_scalar_expression_node :: (factor: Scalar) -> *Ast_Node {
     node: *Scalar_Expression_Node = talloc(size_of(Scalar_Expression_Node));
     assert(node != null);
 
-    // Takes a scalar, creates a term with that single factor and returns it.
-    term: Term;
-    term.multiples = 1;
-    
-    factors: [..] Scalar;
-    terms:   [..] Term;
-
-    array_add(*factors, factor);
-    term.factors = factors;
-
-    array_add(*terms, term);
-
-    node.kind  = Node_Kind.Scalar_Expression;
-    node.terms = terms;
+    node.kind = Node_Kind.Scalar_Expression;
+    node.num_terms         = 1;
+    node.term.multiples    = 1;
+    node.term.factors[0]   = factor;
+    node.term.num_factors  = 1;
+    node.term.next         = null;
 
     return node;
 }

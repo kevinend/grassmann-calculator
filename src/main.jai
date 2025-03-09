@@ -25,6 +25,8 @@
 
 main :: () {
 
+    print("Size of Term == %\n", size_of(Term));
+
     USER_PROMPT :: "> ";
     success: bool = false;
     quit: bool    = false;
