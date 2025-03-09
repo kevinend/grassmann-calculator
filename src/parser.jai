@@ -16,6 +16,8 @@
 #scope_export
 
 Parser :: struct {
+    is_initialized: bool;
+
     tokens: [] Token;
     current_token: int;
 
@@ -172,9 +174,15 @@ reset_parser :: (parser: *Parser, tokens: [] Token) {
     parser.tokens = tokens;
     parser.current_token = 0;
 
-    parser.mode      = .Prefix;
-    parser.operators = stack_new(Operator);
-    parser.operands  = stack_new(*Ast_Node); 
+    parser.mode = .Prefix;
+
+    if !parser.is_initialized {
+        parser.operators = stack_new(Operator);
+        parser.operands  = stack_new(*Ast_Node);
+
+        parser.is_initialized = true;
+    }
+    
 }
 
 peek_token :: (parser: *Parser) -> Token {
