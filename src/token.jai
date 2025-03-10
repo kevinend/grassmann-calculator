@@ -17,12 +17,11 @@ Token_Type :: enum u32 {
     Open_Paren;         // prefix = Group_Start,     infix_or_postfix = Function_Call
     Closed_Paren;       // prefix = No_Op,           infix_or_postfix = Function_Call or End of Group
     Comma;              // prefix = No_Op,           infix_or_postfix = Argument_Separator
-    Semicolon;          // prefix = No_Op,           infix_or_postfix = No_Op      *must be on the end of every expression!
+    Semicolon;          // prefix = No_Op,           infix_or_postfix = No_Op
 
     Literal;
+    Number;
     Identifier;
-    Basis_Element;
-    Scalar;
 
     Keyword_Direction;
     Keyword_Position;
@@ -43,7 +42,6 @@ Token :: struct {
 
     union {
         text:    string;
-        basis:  *Basis_Element;
-        scalar:  Scalar;
+        value:   float;
     }
 }

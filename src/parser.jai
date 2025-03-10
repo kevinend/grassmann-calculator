@@ -52,7 +52,7 @@ descend :: (node: *Ast_Node, indent: int = 0) {
 
     if node.kind == .Unary_Operator {
         operator_node := cast(*Unary_Operator_Node)node;
-        print( "Unary operator == %\n", operator_node.op );
+        print("Unary operator == %\n", operator_node.op);
         descend(operator_node.rhs, indent + 2);
     }
     else
@@ -61,30 +61,15 @@ descend :: (node: *Ast_Node, indent: int = 0) {
         print("Identifier == %\n", identifier.name);
     }
     else
-    if node.kind == .Basis_Element {
-        element := cast(*Basis_Element_Node)node;
-        basis   := element.basis;
-        print("Basis Element (grade == %, bits == %, symbol == %)\n", basis.grade, basis.bits, basis.symbol);
-    }
-    else
-    if node.kind == .Scalar {
-        scalar := cast(*Scalar_Node)node;
-        print("Scalar (value == %, exponent == %, symbol_hash == %)\n", scalar.value, scalar.exponent, scalar.symbol_hash);
-    }
-    else
-    if node.kind == .Scalar_Expression {
-        expression := cast(*Scalar_Expression_Node)node;
-        term       := *expression.term;
-        i := 0;
-        while term != null {
-            print("Printing term %\n", i);
-            for i: 0..term.num_factors-1 {
-                print("Factor == %\n", term.factors[i]);
-            }
-            term = term.next;
-            i += 1;
-        }
-        print("\n");
+    if node.kind == .Element {
+        element := cast(*Element_Node)node;
+        print( 
+			"Element (Coefficient=%, Grade=%, Symbol=%, Bits=%)\n"
+            ,coefficient_to_string(element.coefficient)
+            ,element.basis.grade
+            ,element.basis.symbol
+            ,element.basis.bits
+		);
     }
     else
     if node.kind == .Binary_Operator {
@@ -123,13 +108,12 @@ parse_expression :: (parser: *Parser) -> Ast {
 
     using parser; // short-hand so we don't have to say parser.field all the time.
 
-    token := peek_token(parser);
     while true {
-        token = consume_token(parser);
+        token := consume_token(parser);
         if token.type == .Semicolon { break; }
         
         if parser.mode == .Prefix {
-            op := prefix_token_to_operator[token.type];
+            op := token_to_prefix_operator[token.type];
             if op {
                 stack_push(*operators, op);
             }
@@ -140,8 +124,7 @@ parse_expression :: (parser: *Parser) -> Ast {
         }
         else
         if parser.mode == .Infix_or_Postfix {
-            op := nonprefix_token_to_operator[token.type];
-            print("Op == %\n", op);
+            op := token_to_infix_or_postfix_operator[token.type];
             if !op { 
                 // so this would be "identifier identifier"
                 // we also want to catch like "identifier operator" that isn't postfix for some reason "e1-" crashed the stack. need to investigate
@@ -215,15 +198,11 @@ new_operand :: (token: Token, operands: *Stack(*Ast_Node)) {
 
     node: *Ast_Node = null;
 
-    if token.type == .Scalar {
-        node = new_scalar_node(token.scalar);
-    }
-    else 
-    if token.type == .Basis_Element {
-        scalar: Scalar = .{ value = 1, exponent = 1, symbol_hash = hash_scalar_symbol("1") };
-        scalar_node   :=  new_scalar_node(scalar);
+    if token.type == .Number {
+        coefficient := new_term(token.value);
+        basis       := get_basis_element(0);
 
-        node = new_basis_element_node(scalar_node, token.basis);
+        node = new_element_node(coefficient, basis);
     }
     else
     if token.type == .Identifier {

@@ -1,6 +1,8 @@
 /*
     This file contains information about the currently declared exterior algebra space.
     The space defines an 'execution-context' for the current set of expressions.
+	Part of the execution context is the list of currently declared and defined symbols so in a certain respect the
+	exterior space data type replaces the traditional symbol table(s).
 
     The exterior (Grassmann) algebra components tied to the space are the dimension of the current execution context,
     the list of basis-elements of grades 0 to n and a mapping table from the integer representation of the basis elements
@@ -37,33 +39,31 @@
 #scope_export
 
 Basis_Element :: struct {
+	// Represents any basis element from grade [0,n] in the currently declared space.
     grade:  int;
     bits:   int;
 	symbol: string;
 }
 
-Scalar :: struct {
-
-/*
-    A scalar can either be a value like 3 or a symbol like 'a1'. 
-    This type has a 'symbol_hash' field which is defined 
-    to be either "1" (for values) or a single leading character followed by up to 3 digits (ex. a1, a01, a001, A1, A01, A001 etc.).
-
-    Instead of the symbol field being a string or a pointer to an interned string the symbol is encoded as a u16.
-    That u16 is stored in the 'Scalar_Symbol's data structure which uses the u16 as a key and returns the string representation of the symbol
-    when we need to print the scalar to the end-user. All calculations use the u16 representation.
-
-    For some reason using a 16-byte string, or an 8-byte pointer to a string seemed too wasteful when the restricted symbols 
-    can be represented as 2-byte shorts.
-*/
-
-    value:       float;
-    exponent:    s16;
-    symbol_hash: u16;
+Factor :: struct {
+	exponent: 			   s16;
+	scalar_variable_index: u16;
 }
 
-Scalar_Symbols :: struct {
-    hashes:  [..] u16;     
+Term :: struct {
+	// Represents a single number or a list of scalar-variable factors to represent terms such as "a1" or a product like "a1b2c3"
+	// This is like a tagged union without the tag. A number is implicit and occurs when the count of factors is zero.
+
+	value: float;
+	#place value; multiples: float;
+
+	num_factors: u32;
+	factors: [] Factor;
+	next: *Term;
+}
+
+Scalar_Variables :: struct {
+    hashes:  [..] u32;     
     symbols: [..] string;  // ex. "1", "a1", "b2", etc.
 }
 
@@ -78,7 +78,7 @@ Exterior_Space :: struct {
 	basis_elements:         [MAX_NUMBER_OF_BASIS_ELEMENTS]  Basis_Element;
 	bits_to_basis_elements: [MAX_NUMBER_OF_BASIS_ELEMENTS] *Basis_Element;
 
-    scalar_symbols: Scalar_Symbols;
+    scalar_variables: Scalar_Variables;
 }
 
 space: Exterior_Space; // TODO: could pass this to the lexer... and the interpreter that's when we need both!
@@ -122,30 +122,56 @@ update_exterior_space :: (dimension: int, _1_element_symbols: [] string) {
 	return;
 }
 
-hash_scalar_symbol :: (s: string) -> u16 {
+get_basis_element :: (bits: int) -> *Basis_Element {
 
-    // Format of a scalar symbol is an alphabet character followed by up to 3 digits
-    // The smallest number is a000 and the largest is Z999.
-    // We map a-z to the numbers 1-26 and A-Z as 26-53.
-    // As long as we keep this range we can fit all the scalar symbols hashes into u16s.
-    //
-    // The hash value 1 is reserved for the symbol "1" which is used to represent pure numbers.
-    //
-    // To build up the number we start at end the end of the string and parse digits as powers of 10
-    // then convert the character and add its hash.
+	basis_element := space.bits_to_basis_elements[bits];
+	return basis_element;
+}
 
-    assert(s[0] == #char "1" || (s[0] >= #char "a" && s[0] <= #char "z") || (s[0] >= #char "A" && s[0] <= #char "Z"));
-    assert(s.count <= 4);
+new_term :: (value: float) -> (term: *Term) {
 
-    if s[0] == #char "1" {
-        return 1;
-    }
+	term: *Term = talloc(size_of(Term));
+	assert(term != null);
+	memset(term, 0, size_of(Term));
 
-    i := s.count-1;
+	term.value = value;
+	return term;
+}
 
-    hash:  u16;
-    powers: u16 = 1;
-    digit:  u16;
+new_term :: (multiples: float, exponent: s16, index: u16) -> (term: *Term) {
+
+	term := cast(*Term)talloc(size_of(Term));
+	assert(term != null);
+	memset(term, 0, size_of(Term));
+
+	term.factors.data  = talloc(size_of(Factor));
+	term.factors.count = 1;
+	assert(term.factors.data != null); 
+
+	term.factors[0].exponent = exponent;
+	term.factors[0].scalar_variable_index = index;
+	term.num_factors   = 1;
+
+	term.multiples = multiples;
+	term.factors.count = 1;
+
+	return term;
+}
+
+hash_scalar_variable :: (s: string) -> u32 {
+
+	// Format of a scalar variable is an alphabet character followed by up to 7 digits.
+	// The smallest variable is a0000000 and the largest is Z9999999.
+	// The hashing algorithm (if you can even call it that) can fit all strings in this range in a u32.
+
+    assert((s[0] >= #char "a" && s[0] <= #char "z") || (s[0] >= #char "A" && s[0] <= #char "Z"));
+    assert(s.count <= 8);
+
+    hash:   u64;
+
+    powers: u64 = 1;
+    digit:  u64 = 0;
+	i := s.count-1;
     while i > 0 {
         digit  = s[i] - #char "0";
         digit  *= powers;
@@ -157,38 +183,99 @@ hash_scalar_symbol :: (s: string) -> u16 {
     }
 
     if s[0] >= #char "a" && s[0] <= #char "z" {
-        digit  = s[i] - #char "a" + 1;
+        digit  = s[i] - #char "a";
         digit *= powers;
         hash += digit;
     }
     else {
-        digit  = (s[i] - #char "A") + 27;
+        digit  = (s[i] - #char "A") + 26;
         digit *= powers;
         hash += digit; 
     }
 
-    assert( hash <= 65535 );
-    return hash;
+	U32_MAX :: 0xFFFF_FFFF;
+    assert(hash <= U32_MAX);
+
+    return cast(u32)hash;
 }
 
-insert_scalar_symbol :: (scalar_symbols: *Scalar_Symbols, hash: u16, symbol: string) {
+insert_scalar_variable :: (scalar_variables: *Scalar_Variables, hash: u32, symbol: string) {
 
-    // Linear runtime.
-    // The size of the hashes are 2-bytes so you could fit 256 symbols on 4, 64 byte cache lines so not worried about it for now.
+    // Big-O(n)
     found: bool = false;
-    for i: 0..scalar_symbols.hashes.count-1 {
-        if hash == scalar_symbols.hashes[i] {
+    for i: 0..scalar_variables.hashes.count-1 {
+        if hash == scalar_variables.hashes[i] {
             found = true;
             break;
         }
     }
     
     if !found {
-        array_add(*scalar_symbols.hashes,  hash);
-        array_add(*scalar_symbols.symbols, symbol);
+        array_add(*scalar_variables.hashes,  hash);
+        array_add(*scalar_variables.symbols, symbol);
     }
 
     return;
+}
+
+coefficient_to_string :: (term: *Term) -> string {
+
+	builder: String_Builder;
+
+	while term.next != null {
+		if term.factors.count == 0 {
+			value := tprint("%", term.value);
+			append(*builder, value);
+		}
+		else {
+			// scalar variable or product of scalar variables
+			if term.multiples != 1 {
+				multiples := tprint("%", term.multiples);
+				append(*builder, multiples);
+			}
+
+			for i: 0..term.factors.count-1 {
+				factor := term.factors[i];
+				scalar_variable := space.scalar_variables.symbols[factor.scalar_variable_index];
+				append(*builder, scalar_variable);
+
+				if factor.exponent > 1 {
+					exponent := tprint("%", factor.exponent);
+					append(*builder,"^");
+					append(*builder, exponent);
+				}
+			}
+		}
+
+		append(*builder, " + " );
+	}
+
+	// this is redundant but add the last term which is copy and pasting the code in the while loop above.
+	if term.factors.count == 0 {
+		value := tprint("%", term.value);
+		append(*builder, value);
+	}
+	else {
+		// scalar variable or product of scalar variables
+		if term.multiples != 1 {
+			multiples := tprint("%", term.multiples);
+			append(*builder, multiples);
+		}
+
+		for i: 0..term.factors.count-1 {
+			factor := term.factors[i];
+			scalar_variable := space.scalar_variables.symbols[factor.scalar_variable_index];
+			append(*builder, scalar_variable);
+
+			if factor.exponent > 1 {
+				exponent := tprint("%", factor.exponent);
+				append(*builder,"^");
+				append(*builder, exponent);
+			}
+		}
+	}
+
+	return builder_to_string(*builder);
 }
 
 #scope_file
