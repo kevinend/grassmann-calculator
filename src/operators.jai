@@ -22,8 +22,8 @@ Operator :: enum u8 {
 }
 
 // These are sparse static tables intialized a single time on application startup and used throughout the lifecycle of the application by the parser.
-token_to_prefix_operator           : [Token_Type.Count] Operator;  // token_to_prefix_operator
-token_to_infix_or_postfix_operator : [Token_Type.Count] Operator;  // token_to_infix_or_postfix_operator
+token_to_prefix_operator           : [Token_Type.Count] Operator;
+token_to_infix_or_postfix_operator : [Token_Type.Count] Operator;
 operator_precedence                : [Operator.Count]   u8;
 operator_arity                     : [Operator.Count]   u8;
 
@@ -78,11 +78,9 @@ initialize_operator_tables :: () {
         
         operator_precedence[Operator.Group_Start]                 = 11;
         operator_precedence[Operator.Group_End]                   = 11;
-        
-        
     }
 
-    // Map an operator to its to the number of arguments it takes, also known as arity.
+    // Map an operator to the number of arguments it takes which is known as a function's arity.
     {
         operator_arity[Operator.Assignment]                   = 2;
         operator_arity[Operator.Addition]                     = 2;
