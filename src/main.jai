@@ -25,8 +25,6 @@
 
 main :: () {
 
-    print("Size of Term == %\n", size_of(Term));
-
     USER_PROMPT :: "> ";
     success: bool = false;
     quit: bool    = false;
@@ -37,8 +35,9 @@ main :: () {
 
     dimension: int = 4;
 
+    // Preconditions
     update_exterior_space(dimension, .["e0","e1","e2","e3"]);
-    init_global_parsing_tables();
+    initialize_operator_tables();
 
 	input: string;
 	while !quit {

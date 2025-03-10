@@ -2,77 +2,193 @@
 
 main :: () {
 
+    // The Coefficient is a list of terms
+    // The Terms is a list of factors...
+
+    // if we store pointers then we can't memcmp these but if we store offsets then we could
+
     {
-        Node_Kind :: enum u8 {
-            Symbol;
-            Basis_Element;
-            Scalar;        
-            Scalar_Expression;
-            Unary_Operator;     // prefix operators
-            Binary_Operator;    // infix/postfix operators
-            Intrinsic;
-        }
-
-        Ast_Node :: struct {
-            kind: Node_Kind;
-        }
-
-        Scalar :: struct {
-            value:       float;
-            exponent:    s16;
-            symbol_hash: u16;
+        // could overload operators but don't like that
+        
+        // 03.09.2025
+        Factor :: struct {
+            exponent:      u32;
+            variable_hash: u32;
         }
 
         Term :: struct {
-            multiples:   int;
-            num_factors: u16;
-            next_factor: u16;
-            factors: [6] Scalar; // TODO: this should be fixed based on the basis of the space
+            // Represents either a pure number such as 1, 2 or 3 or contains a list of scalar-variable factors to represent terms
+            // such as "a1" or a product like "a1b2c3"
+            value: float;
+            #place value; multiples: float;
+
+            factors: [] Factor;
+            next: *Term;
         }
 
-        print("Size of term == %\n", size_of(Term));
-
-        Scalar_Expression_Node :: struct {
-            #as using _kind: Ast_Node;
-            terms: List(Term);
+        Basis :: struct {
+            nothing: int;
         }
 
-        // with this we generate the minimal number of whatever
-        // i kind of what this to return a list, not a pointer to list so we can embed it
-        // then terms is a List(Term)
+        Element :: struct {
+            coefficient: *Term;
+            basis:       *Basis;
+        }
 
-        // List(Term) which means it has head, tail and whatever else in there
-        // just points directly to the list instead of being indirect.
-        // don't even have to initialize it, just use it and it will figure out what to do, since these are all zeroes
-
-        // say we add 3 + a1 this generates two terms
-        factor1: Scalar = .{ value = 3, exponent = 1, symbol_hash = 1};
-        term1:   Term;
-        term1.factors[term1.next_factor] = factor1;
-        term1.num_factors += 1;
-        term1.next_factor += 1;
-
-        factor2: Scalar = .{ value = 1, exponent = 1, symbol_hash = 11};
-        term2:   Term;
-        term2.factors[term2.next_factor] = factor2;
-        term2.num_factors += 1;
-        term2.next_factor += 1;
-
-        node: Scalar_Expression_Node;
-        list_append(*node.terms, term1);
-        list_append(*node.terms, term2);
-
-        c := list_head(node.terms);
-        i := 0;
-        while c != null {
-            term := c.value;
-            print("Printing term %\n", i);
-            for i: 0..term.num_factors-1 {
-                print("Factor == %\n", term.factors[i]);
+        operator == :: (lterm: Term, rterm: Term) -> bool {
+            // Terms are equal when the following conditions are true.
+            //  1. Each term contains the same number of factors (including zero).
+            //  2. Each term contains the same factors in the same order.
+            //  3. Each factor in the term is raised to the same power.
+            if lterm.factors.count == rterm.factors.count {
+                count := lterm.factors.count;
+                return memcmp(lterm.factors.data, rterm.factors.data, size_of(Factor) * count) == 0;
             }
-            c = c.next;
-            i += 1;
+            else {
+                return false;
+            }
         }
+
+        /*
+        combine_like_terms
+          Input  = (3 + a1) + (b1 + 4 + a1)
+          Output = (7 + 2a1 + b1)
+          Copy the lhs terms into a new buffer.
+          Iterate over each term in the copy (iterate by index, not .next or when you add to this list you will keep iterating unnecessarily)
+           Iterate over each term in the rhs
+           if terms_are_equal(lterm, rterm) {
+                // This is the body for the 'terms are equal piece'
+                if lterm.factor.count == rterm.factor.count {
+                    count := lterm.factor.count;
+                    return memcmp(lterm.factors.data, rterm.factors.data, size_of(Factor) * count);
+                }
+                else {
+                    return false;
+                }
+                
+                copy.multiples = lterm.multiples + rterm.multiples;
+                // keep track of the previous node then link the previous to the next so that factor is excluded
+                // in future comparisons.
+           }
+           else {
+                couldn't combine terms add the new term!
+                TODO: how do you do this without iterating over the new term?
+           }
+        */
+
+        t1: Term;
+        t2: Term;
+
+        t1.value = 10;
+        t2.value = 20;
+
+        print("Memcmp for pure numbers returns %\n", t1 == t2 );
+
+        t1.factors.data = alloc(1);
+        t1.factors.count = 1;
+        t2.factors.data = alloc(2);
+        t2.factors.count = 1;
+
+        t1.factors[0] = .{ exponent = 1, variable_hash = 10 };
+        t2.factors[0] = .{ exponent = 1, variable_hash = 11 };
+
+        print("Memcmp for factors returns %\n", t1 == t2);
+
+        // then for basis elements we use grade 0 and do what we did in the past
+        // can traverse the list of factors then do a memcmp from the exponent
+
+        print("Size of factor == %\n", size_of(Factor));
+        print("Size of term == %\n",   size_of(Term));
+
+    }
+
+    {
+        MAX_DIMENSION :: 4;
+        Product :: struct {
+            num_factors: int;
+            factors:     [MAX_DIMENSION] Scalar_Variable;
+
+        }
+
+        Scalar_Variable :: struct {
+            multiples:        s32;
+            exponent:         s16;
+            identifier_hash:  u16;
+        }
+
+        Term_Type :: enum {
+            Value;
+            Variable;
+            Product;
+        }
+
+        Term :: struct {
+            type: Term_Type;
+            union {
+                value:    int;
+                variable: Scalar_Variable;
+                product:  *Product;
+            }
+            next_term: *Term;
+        }
+
+        Basis :: struct {
+            coefficient: Term;
+        }
+
+        /*
+            if lhs.grade == rhs.grade
+                result.coefficient = add_coefficients(lhs.coefficient, rhs.coefficient);
+                result.basis = lhs.basis;
+            
+                
+            add_coefficients(Lterm: Term, Rterm: Term) -> term {
+                result: Term;
+                if Lterm.type == .Value && Rterm.type == .Value {
+                    result.type  = .Value;
+                    result.value = Lterm.value + Rterm.value;
+                }
+                else
+                if (Lterm.type == .Variable && Rterm.type == .Variable) && (Lterm.variable.symbol == Rterm.variable.symbol) {
+                    // a1 + a1
+                }
+                else {
+                    // Iterate over the list of terms
+                }
+            }
+
+        */
+
+        // how would you do this?
+        // you Addition -> BasisElement1 and Basis_Element2
+        // 
+        //                
+        // 
+        // 
+        //        if Lterm.type == .Value && Rterm.type == .Value 
+        // add_coefficients( lhs.coefficient, rhs.coefficient );
+        // result: Term;
+        // 
+
+        // so before we go hog wild let's double check the math here.
+        // 3 + 4
+        // term.type = .Value, 3  term.type = .Value, 4 (now we don't have to hash 1 and have that confusing piece)
+        //   lhs.coefficent.value += rhs.coefficient.value;
+        // 
+        // a1 + a1
+        // term.type = .Variable, a1 term.type == .Variable
+        //   add them together
+        //   term.type = .Variable, term.variable.multiples = add them together. exponent = lhs.exponent, identifier_hash = lhs.identifier_hash;
+        //
+        // 3 + a1
+        // coefficient.type == .Value && coefficient.type == .Variable
+        // this generates a new list of terms with each value
+        // do we just link them together?
+        // result just joins the two links together
+        // basis.coefficient = lhs.coefficient;
+        // basis.coefficient.next = rhs.coefficent;
+            
+        print("Size of term == %\n", size_of(Term));
     }
 
     // These are the actual test cases.
@@ -90,12 +206,12 @@ main :: () {
             5*4^3
             T = v!!
             -!v! should parse as (-(!v))!
-            L = dir(p|v!, 4)          // this doesn't look right!
-            p = 4*e1; // WORKED
-            pos(arg1); // WORKED!
+            L = dir(p|v!, 4)          
+            p = 4*e1;
+            pos(arg1);
             pos(arg1,arg2);
-            pos(arg1,arg2,arg3) ; 02.23.2025 this no workie either!
-            dir(arg1,(arg2+arg3));  02.23.2025 This doesn't work anymore; wonder if that was what the other logic was about? with the open paren in the infix section?
+            pos(arg1,arg2,arg3) ;
+            dir(arg1,(arg2+arg3));
             4*e1|e2 + e1|5*e3
             (-a + b) * (c + d)
             3 * 4 + 5 * 7
@@ -201,4 +317,3 @@ main :: () {
 #scope_file
 #import "Basic";
 #import "Hash_Table";
-#load "list.jai";
