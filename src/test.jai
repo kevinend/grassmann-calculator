@@ -22,11 +22,6 @@ main :: () {
         print("Size of term KEVIN == %\n", size_of(Term));
     }
 
-    // The Coefficient is a list of terms
-    // The Terms is a list of factors...
-
-    // if we store pointers then we can't memcmp these but if we store offsets then we could
-
     {
         // could overload operators but don't like that
         
@@ -42,6 +37,7 @@ main :: () {
             value: float;
             #place value; multiples: float;
 
+            num_factors: u32;
             factors: [] Factor;
             next: *Term;
         }

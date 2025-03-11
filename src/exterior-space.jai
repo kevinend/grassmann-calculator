@@ -41,7 +41,7 @@
 Basis_Element :: struct {
 	// Represents any basis element from grade [0,n] in the currently declared space.
     grade:  int;
-    bits:   int;
+    bits:   int;		// TODO: 03.10.2025 instead of having the mapping table could i just include the display_index here? especially if we have different spaces
 	symbol: string;
 }
 
@@ -81,7 +81,7 @@ Exterior_Space :: struct {
     scalar_variables: Scalar_Variables;
 }
 
-space: Exterior_Space; // TODO: could pass this to the lexer... and the interpreter that's when we need both!
+space: Exterior_Space; // TODO: 03.10.2025 Make a stack of these? Have the head be the current space so user can switch?
 
 update_exterior_space :: (dimension: int, _1_element_symbols: [] string) {
 
@@ -157,6 +157,43 @@ new_term :: (multiples: float, exponent: s16, index: u16) -> (term: *Term) {
 
 	return term;
 }
+
+ operator == :: (lterm: Term, rterm: Term) -> bool {
+
+	// Terms are equal when the following conditions are true.
+	//  1. Each term contains the same number of factors (even if the count is zero).
+	//  2. Each term contains the same factors in the same order.
+	//  3. Each factor in the term is raised to the same power.
+	if lterm.factors.count == rterm.factors.count {
+		count := lterm.factors.count;
+		return memcmp(lterm.factors.data, rterm.factors.data, size_of(Factor) * count) == 0;
+	}
+	else {
+		return false;
+	}
+}
+
+/* Stub to combine like terms:
+combine_like_terms :: (lhs: *Term, rhs: *Term) -> *Term {
+	// Example:
+	// Input  = (3 + a1) + (b1 + 4 + a1)
+	// Output = (7 + 2a1 + b1)
+
+	Copy the lhs terms into a new list. Keep track of the number of terms.
+	Iterate over each term in the copy.
+	  -- Iterate by index from previous step
+	  -- If you iterate while .next != null then when you append to your copy from the rhs you will unnecessarily iterate that element over the rest of the rhs)
+	  -- Double-check ^ might not be true, too tired.
+	  Iterate over each term in the rhs.
+		if lterm == rterm {
+			lterm-copy.multiples = lterm.multiples + rterm.multiples;
+			-- can keep track of the previous while iterating rhs and 'remove' this node from the rhs so it isn't constantly checked
+		}
+		else {
+			-- can't combine the two terms so add the rterm to the list of lterms
+		}
+}
+*/
 
 hash_scalar_variable :: (s: string) -> u32 {
 
