@@ -8,7 +8,7 @@
     the list of basis-elements of grades 0 to n and a mapping table from the integer representation of the basis elements
     to their 'canonical' ordering. Ordering is explained further down in this comment.
 
-    The basis 'objects' are referred to as elements rather than vectors. In Grassmann algebra, the basis set for a 
+    The basis 'objects' are referred to as elements rather than vectors. In Grassmann algebra, the basis set for a
     space can include the origin (a point) along with the typical 1-vectors, so the term basis "element" is used rather
     than basis vectors.
 
@@ -41,7 +41,7 @@
 Basis_Element :: struct {
 	// Represents any basis element from grade [0,n] in the currently declared space.
     grade:  int;
-    bits:   int;		// TODO: 03.10.2025 instead of having the mapping table could i just include the display_index here? especially if we have different spaces
+    bits:   int;
 	symbol: string;
 }
 
@@ -63,7 +63,7 @@ Term :: struct {
 }
 
 Scalar_Variables :: struct {
-    hashes:  [..] u32;     
+    hashes:  [..] u32;
     symbols: [..] string;  // ex. "1", "a1", "b2", etc.
 }
 
@@ -91,7 +91,7 @@ update_exterior_space :: (dimension: int, _1_element_symbols: [] string) {
 	space.dimension = dimension;
 
 	num_basis_elements := power(2, dimension);
-	
+
 	space.basis_elements[0] = Basis_Element.{ grade = 0, bits = 0, symbol = "1" };
 	count: int = 1;
 	for j: 1..dimension {
@@ -110,7 +110,7 @@ update_exterior_space :: (dimension: int, _1_element_symbols: [] string) {
 		element        := *space.basis_elements[i];
 		element.symbol =   generate_basis_symbol(element.bits, element.grade, _1_element_symbols);
 	}
-	
+
 	// update the mapping table from an element's bits to the basis element
 	for i: 0..num_basis_elements-1 {
 		index := space.basis_elements[i].bits;
@@ -146,7 +146,7 @@ new_term :: (multiples: float, exponent: s16, index: u16) -> (term: *Term) {
 
 	term.factors.data  = talloc(size_of(Factor));
 	term.factors.count = 1;
-	assert(term.factors.data != null); 
+	assert(term.factors.data != null);
 
 	term.factors[0].exponent = exponent;
 	term.factors[0].scalar_variable_index = index;
@@ -215,7 +215,7 @@ hash_scalar_variable :: (s: string) -> u32 {
         hash  += digit;
 
         powers *= 10;
-        
+
         i-= 1;
     }
 
@@ -227,7 +227,7 @@ hash_scalar_variable :: (s: string) -> u32 {
     else {
         digit  = (s[i] - #char "A") + 26;
         digit *= powers;
-        hash += digit; 
+        hash += digit;
     }
 
 	U32_MAX :: 0xFFFF_FFFF;
@@ -246,7 +246,7 @@ insert_scalar_variable :: (scalar_variables: *Scalar_Variables, hash: u32, symbo
             break;
         }
     }
-    
+
     if !found {
         array_add(*scalar_variables.hashes,  hash);
         array_add(*scalar_variables.symbols, symbol);
@@ -318,7 +318,7 @@ coefficient_to_string :: (term: *Term) -> string {
 #scope_file
 
 power :: (a: int, b: int) -> int {
-	
+
 	// Implements the basic arithment expression: c = a^b
 	c: int = 1;
 	for i: 0..b-1 {
@@ -340,7 +340,7 @@ generate_basis_elements :: (
 	,k: int
 	,c: *int
 ) {
-	
+
 	// This is a modified version of n choose k, where for each element in our 1-elements we generate the combinations
 	// with the element and the combinations without the element. The caller invokes this for k = 1..N so we end up
 	// with each basis element in our collection in order of grade. Also, the 1-elements themselves are NOT supplied
@@ -360,7 +360,7 @@ generate_basis_elements :: (
 	}
 
 	// include the current one element (represented as 2^i so just a bit-shift) and find the basis-elements with this 1-element and do the same excluding this current 1-element
-	include_first := Basis_Element.{ grade = element.grade + 1, bits = element.bits | (1 << i) }; 
+	include_first := Basis_Element.{ grade = element.grade + 1, bits = element.bits | (1 << i) };
 	exclude_first := Basis_Element.{ grade = element.grade    , bits = element.bits };
 
 	generate_basis_elements(i+1, include_first, n, k, c);
@@ -374,7 +374,7 @@ generate_basis_symbol :: (bits: int, grade: int, _1_element_symbols: [] string) 
 	wedge := "^";
 	i 	  := 0;
 	n 	  := 0;
-	
+
 	while true {
 		if bits & (1 << i) {
 			if n == grade-1 { break; }
@@ -384,7 +384,7 @@ generate_basis_symbol :: (bits: int, grade: int, _1_element_symbols: [] string) 
 				n += 1;
 			}
 		}
-					
+
 		i += 1;
 	}
 	append(*builder, _1_element_symbols[i]);
