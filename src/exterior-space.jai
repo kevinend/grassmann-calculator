@@ -8,7 +8,7 @@
     the list of basis-elements of grades 0 to n and a mapping table from the integer representation of the basis elements
     to their 'canonical' ordering. Ordering is explained further down in this comment.
 
-    The basis 'objects' are referred to as elements rather than vectors. In Grassmann algebra, the basis set for a 
+    The basis 'objects' are referred to as elements rather than vectors. In Grassmann algebra, the basis set for a
     space can include the origin (a point) along with the typical 1-vectors, so the term basis "element" is used rather
     than basis vectors.
 
@@ -63,7 +63,7 @@ Term :: struct {
 }
 
 Scalar_Variables :: struct {
-    hashes:  [..] u32;     
+    hashes:  [..] u32;
     symbols: [..] string;  // ex. "1", "a1", "b2", etc.
 }
 
@@ -81,7 +81,7 @@ Exterior_Space :: struct {
     scalar_variables: Scalar_Variables;
 }
 
-space: Exterior_Space; // TODO: could pass this to the lexer... and the interpreter that's when we need both!
+space: Exterior_Space; // TODO: 03.10.2025 Make a stack of these? Have the head be the current space so user can switch?
 
 update_exterior_space :: (dimension: int, _1_element_symbols: [] string) {
 
@@ -91,7 +91,7 @@ update_exterior_space :: (dimension: int, _1_element_symbols: [] string) {
 	space.dimension = dimension;
 
 	num_basis_elements := power(2, dimension);
-	
+
 	space.basis_elements[0] = Basis_Element.{ grade = 0, bits = 0, symbol = "1" };
 	count: int = 1;
 	for j: 1..dimension {
@@ -110,7 +110,7 @@ update_exterior_space :: (dimension: int, _1_element_symbols: [] string) {
 		element        := *space.basis_elements[i];
 		element.symbol =   generate_basis_symbol(element.bits, element.grade, _1_element_symbols);
 	}
-	
+
 	// update the mapping table from an element's bits to the basis element
 	for i: 0..num_basis_elements-1 {
 		index := space.basis_elements[i].bits;
@@ -146,7 +146,7 @@ new_term :: (multiples: float, exponent: s16, index: u16) -> (term: *Term) {
 
 	term.factors.data  = talloc(size_of(Factor));
 	term.factors.count = 1;
-	assert(term.factors.data != null); 
+	assert(term.factors.data != null);
 
 	term.factors[0].exponent = exponent;
 	term.factors[0].scalar_variable_index = index;
@@ -157,6 +157,43 @@ new_term :: (multiples: float, exponent: s16, index: u16) -> (term: *Term) {
 
 	return term;
 }
+
+ operator == :: (lterm: Term, rterm: Term) -> bool {
+
+	// Terms are equal when the following conditions are true.
+	//  1. Each term contains the same number of factors (even if the count is zero).
+	//  2. Each term contains the same factors in the same order.
+	//  3. Each factor in the term is raised to the same power.
+	if lterm.factors.count == rterm.factors.count {
+		count := lterm.factors.count;
+		return memcmp(lterm.factors.data, rterm.factors.data, size_of(Factor) * count) == 0;
+	}
+	else {
+		return false;
+	}
+}
+
+/* Stub to combine like terms:
+combine_like_terms :: (lhs: *Term, rhs: *Term) -> *Term {
+	// Example:
+	// Input  = (3 + a1) + (b1 + 4 + a1)
+	// Output = (7 + 2a1 + b1)
+
+	Copy the lhs terms into a new list. Keep track of the number of terms.
+	Iterate over each term in the copy.
+	  -- Iterate by index from previous step
+	  -- If you iterate while .next != null then when you append to your copy from the rhs you will unnecessarily iterate that element over the rest of the rhs)
+	  -- Double-check ^ might not be true, too tired.
+	  Iterate over each term in the rhs.
+		if lterm == rterm {
+			lterm-copy.multiples = lterm.multiples + rterm.multiples;
+			-- can keep track of the previous while iterating rhs and 'remove' this node from the rhs so it isn't constantly checked
+		}
+		else {
+			-- can't combine the two terms so add the rterm to the list of lterms
+		}
+}
+*/
 
 hash_scalar_variable :: (s: string) -> u32 {
 
@@ -178,7 +215,7 @@ hash_scalar_variable :: (s: string) -> u32 {
         hash  += digit;
 
         powers *= 10;
-        
+
         i-= 1;
     }
 
@@ -190,7 +227,7 @@ hash_scalar_variable :: (s: string) -> u32 {
     else {
         digit  = (s[i] - #char "A") + 26;
         digit *= powers;
-        hash += digit; 
+        hash += digit;
     }
 
 	U32_MAX :: 0xFFFF_FFFF;
@@ -209,7 +246,7 @@ insert_scalar_variable :: (scalar_variables: *Scalar_Variables, hash: u32, symbo
             break;
         }
     }
-    
+
     if !found {
         array_add(*scalar_variables.hashes,  hash);
         array_add(*scalar_variables.symbols, symbol);
@@ -281,7 +318,7 @@ coefficient_to_string :: (term: *Term) -> string {
 #scope_file
 
 power :: (a: int, b: int) -> int {
-	
+
 	// Implements the basic arithment expression: c = a^b
 	c: int = 1;
 	for i: 0..b-1 {
@@ -303,7 +340,7 @@ generate_basis_elements :: (
 	,k: int
 	,c: *int
 ) {
-	
+
 	// This is a modified version of n choose k, where for each element in our 1-elements we generate the combinations
 	// with the element and the combinations without the element. The caller invokes this for k = 1..N so we end up
 	// with each basis element in our collection in order of grade. Also, the 1-elements themselves are NOT supplied
@@ -323,7 +360,7 @@ generate_basis_elements :: (
 	}
 
 	// include the current one element (represented as 2^i so just a bit-shift) and find the basis-elements with this 1-element and do the same excluding this current 1-element
-	include_first := Basis_Element.{ grade = element.grade + 1, bits = element.bits | (1 << i) }; 
+	include_first := Basis_Element.{ grade = element.grade + 1, bits = element.bits | (1 << i) };
 	exclude_first := Basis_Element.{ grade = element.grade    , bits = element.bits };
 
 	generate_basis_elements(i+1, include_first, n, k, c);
@@ -337,7 +374,7 @@ generate_basis_symbol :: (bits: int, grade: int, _1_element_symbols: [] string) 
 	wedge := "^";
 	i 	  := 0;
 	n 	  := 0;
-	
+
 	while true {
 		if bits & (1 << i) {
 			if n == grade-1 { break; }
@@ -347,7 +384,7 @@ generate_basis_symbol :: (bits: int, grade: int, _1_element_symbols: [] string) 
 				n += 1;
 			}
 		}
-					
+
 		i += 1;
 	}
 	append(*builder, _1_element_symbols[i]);
