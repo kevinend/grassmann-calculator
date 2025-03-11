@@ -1,6 +1,26 @@
 #scope_export
 
 main :: () {
+    {
+        Factor :: struct {
+            exponent: 			   u32;
+            scalar_variable_index: u32;
+        }
+
+        Term :: struct {
+            // Represents a single number or a list of scalar-variable factors to represent terms such as "a1" or a product like "a1b2c3"
+            // This is like a tagged union without the tag. A number is implicit and occurs when the count of factors is zero.
+
+            value: float;
+            #place value; multiples: float;
+
+            num_factors: u32;
+            factors:     [] Factor;
+            next: *Term;
+        }
+
+        print("Size of term KEVIN == %\n", size_of(Term));
+    }
 
     // The Coefficient is a list of terms
     // The Terms is a list of factors...

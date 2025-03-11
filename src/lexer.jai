@@ -86,8 +86,8 @@ generate_tokens :: (lexer: *Lexer, input: string) -> [] Token {
 			continue;
 		}
 
-		if begins_scalar(c) {
-			token = compose_token_scalar(lexer);
+		if begins_number(c) {
+			token = compose_token_number(lexer);
 			add_token(lexer, token);
 			continue;
 		}
@@ -245,17 +245,18 @@ compose_token_literal :: (lexer: *Lexer) -> token: Token {
 	return token;
 }
 
-begins_scalar :: (c: u8) -> bool {
+begins_number :: (c: u8) -> bool {
 	return is_digit(c);
 }
 
-compose_token_scalar :: (lexer: *Lexer) -> token: Token {
+// TODO: 03.10.2025 -- Use strtof for this.
+compose_token_number :: (lexer: *Lexer) -> token: Token {
 
 	// This procedure can get very complicated trying to handle floats, hex, overflow, etc...
 	// As a first pass just handle integers.
 	// Convert the char representation of the numbers to integers as base 10 and store in a float.
 
-	continues_scalar :: inline (c: u8) -> bool {
+	continues_number :: inline (c: u8) -> bool {
 		return is_digit(c) || c == #char "_";
 	}
 
@@ -281,7 +282,7 @@ compose_token_scalar :: (lexer: *Lexer) -> token: Token {
 		}
 
 		success, c = peek_next_character(lexer);
-		if success && continues_scalar(c) {
+		if success && continues_number(c) {
 			consume_character(lexer);
 			if c == #char "_" { 
 				continue; 
@@ -307,8 +308,8 @@ compose_token_scalar :: (lexer: *Lexer) -> token: Token {
 	}
 
 	token: Token;
-	token.type   = .Scalar;
-	token.scalar = .{ value = sum, exponent = 1, symbol_hash = hash_scalar_symbol("1") };
+	token.type  = .Number;
+	token.value = sum; 
 
 	tag_token_end(lexer, *token);
 
@@ -327,8 +328,7 @@ compose_token_identifier_keyword_basis_element_or_scalar :: (lexer: *Lexer) -> t
 
 	check_for_keyword :: (ident: string) -> Token_Type {
 
-		type: Token_Type = .Undefined;
-
+		type := Token_Type.Undefined;
  		if ident == {
 			case "dir";   { type = .Keyword_Direction; }
 			case "pos";   { type = .Keyword_Position;  }
@@ -336,46 +336,6 @@ compose_token_identifier_keyword_basis_element_or_scalar :: (lexer: *Lexer) -> t
 		}
 
 		return type;
-	}
-
-	check_for_0_element :: (ident: string) -> u16 {
-
-		// Single character identifiers or identifiers with leading alpha but more than 3 indices are *not* valid symbolic scalars.
-		// Each would just return an identifier, which seems a bit odd that 'a001' would be a symbolic scalar but 'a0001' would not.
-		// Maybe have the lexer report an error that symbolic scalars must be in range 0-999?
-
-		hash: u16 = 0;
-		if ident.count == 1 || ident.count > 4 {
-			return hash;
-		}
-
-		c := ident[0];
-		if (c >= #char "a" && c <= #char "z") || (c >= #char "A" && c <= #char "Z") {
-			m := 1;
-			for i: 1..ident.count-1 {
-				if is_digit(ident[i]) { m += 1; }
-			}
-
-			if m == ident.count {
-				hash = hash_scalar_symbol(ident);
-			}
-		}
-
-		return hash;
-	}
-
-	check_for_1_element :: (ident: string) -> *Basis_Element {
-
-		element: *Basis_Element = null;
-
-		for i: 1..space.dimension {
-			if ident == space.basis_elements[i].symbol {
-				element = *space.basis_elements[i];
-				break;
-			}
-		}
-
-		return element;
 	}
 
 	success: bool;
@@ -407,39 +367,16 @@ compose_token_identifier_keyword_basis_element_or_scalar :: (lexer: *Lexer) -> t
 	}
 
     token: Token;
-	builder: String_Builder;
-	while true {
-		_1_element := check_for_1_element(t);
-		if _1_element {
-			token.type  = .Basis_Element;
-			token.basis = _1_element;
-			break;
-		}
-
-		hash := check_for_0_element(t);
-		if hash {
-			token.type   = .Scalar;
-			token.scalar = .{ exponent = 1, value = 1, symbol_hash = hash };
-
-			append(*builder,t);
-			text := builder_to_string(*builder);
-			insert_scalar_symbol(*space.scalar_symbols, hash, text);
-
-			break;
-		}
-
-		keyword := check_for_keyword(t);
-		if keyword {
-			token.type = keyword;
-			break;
-		}
-
+	
+	keyword := check_for_keyword(t);
+	if keyword {
+		token.type = keyword;
+	}
+	else {
 		token.type = .Identifier;
 		token.text.data = talloc(t.count);
 		memcpy(token.text.data, t.data, t.count);
 		token.text.count = t.count;
-
-		break;
 	}
 
     tag_token_end(lexer, *token);
