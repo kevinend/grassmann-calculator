@@ -1,7 +1,7 @@
 #scope_export
 
 Token_Type :: enum u32 {
-    
+
     Undefined;
 
     Equals;             // prefix = No_Op,           infix_or_postfix = Assignment
@@ -32,14 +32,17 @@ Token_Type :: enum u32 {
     Count;
 }
 
+Position_Info :: struct {
+
+    line_number: int;
+    char_start:  int;
+    char_end:    int;
+}
+
 Token :: struct {
-
+    
     type: Token_Type;
-
-    line_number: 	       int;
-	character_index_start: int;
-    character_index_end:   int;
-
+    position: Position_Info;
     union {
         text:    string;
         value:   float;

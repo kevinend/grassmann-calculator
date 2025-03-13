@@ -50,6 +50,11 @@ descend :: (node: *Ast_Node, indent: int = 0) {
 		print( " " );
 	}
 
+    if node.kind == .Error {
+        error := cast(*Error_Node)node;
+        print("%", error.message);
+    }
+    else
     if node.kind == .Unary_Operator {
         operator_node := cast(*Unary_Operator_Node)node;
         print("Unary operator == %\n", operator_node.op);
@@ -59,6 +64,11 @@ descend :: (node: *Ast_Node, indent: int = 0) {
     if node.kind == .Identifier {
         identifier := cast(*Identifier_Node)node;
         print("Identifier == %\n", identifier.name);
+    }
+    else
+    if node.kind == .Variable {
+        var := cast(*Variable_Node)node;
+        print("Variable == %\n", var.name);
     }
     else
     if node.kind == .Element {

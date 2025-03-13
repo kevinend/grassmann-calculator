@@ -46,8 +46,8 @@ Basis_Element :: struct {
 }
 
 Factor :: struct {
-	exponent: 			   s16;
-	scalar_variable_index: u16;
+	exponent: s16;
+	scalar_variable: u16;
 }
 
 Term :: struct {
@@ -62,9 +62,9 @@ Term :: struct {
 	next: *Term;
 }
 
-Scalar_Variables :: struct {
-    hashes:  [..] u32;     
-    symbols: [..] string;  // ex. "1", "a1", "b2", etc.
+M_Element :: struct {
+	// An M-element represents a multi-element. An element that *can* be of mixed grade.
+	ast: *Ast_Node;
 }
 
 Exterior_Space :: struct {
@@ -78,12 +78,13 @@ Exterior_Space :: struct {
 	basis_elements:         [MAX_NUMBER_OF_BASIS_ELEMENTS]  Basis_Element;
 	bits_to_basis_elements: [MAX_NUMBER_OF_BASIS_ELEMENTS] *Basis_Element;
 
-    scalar_variables: Scalar_Variables;
+    scalar_variable_prefix_characters: string;
+	user_variables: Table(string, M_Element);
 }
 
-space: Exterior_Space; // TODO: could pass this to the lexer... and the interpreter that's when we need both!
+space: Exterior_Space;
 
-update_exterior_space :: (dimension: int, _1_element_symbols: [] string) {
+update_exterior_space :: (dimension: int, _1_element_symbols: [] string, scalar_variable_prefix_characters: string) {
 
 	assert(dimension <= Exterior_Space.MAX_DIMENSION);
     assert(dimension == _1_element_symbols.count);
@@ -119,6 +120,7 @@ update_exterior_space :: (dimension: int, _1_element_symbols: [] string) {
 
 	space.n_element = *space.basis_elements[num_basis_elements-1];
 
+	space.scalar_variable_prefix_characters = scalar_variable_prefix_characters;
 	return;
 }
 
@@ -138,7 +140,7 @@ new_term :: (value: float) -> (term: *Term) {
 	return term;
 }
 
-new_term :: (multiples: float, exponent: s16, index: u16) -> (term: *Term) {
+new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> (term: *Term) {
 
 	term := cast(*Term)talloc(size_of(Term));
 	assert(term != null);
@@ -148,9 +150,9 @@ new_term :: (multiples: float, exponent: s16, index: u16) -> (term: *Term) {
 	term.factors.count = 1;
 	assert(term.factors.data != null); 
 
-	term.factors[0].exponent = exponent;
-	term.factors[0].scalar_variable_index = index;
-	term.num_factors   = 1;
+	term.factors[0].exponent        = exponent;
+	term.factors[0].scalar_variable = encode(scalar_variable);
+	term.num_factors = 1;
 
 	term.multiples = multiples;
 	term.factors.count = 1;
@@ -158,64 +160,42 @@ new_term :: (multiples: float, exponent: s16, index: u16) -> (term: *Term) {
 	return term;
 }
 
-hash_scalar_variable :: (s: string) -> u32 {
+matches_1_element :: (ident: string) -> *Basis_Element {
+ 
+	element: *Basis_Element = null;
+	for i: 1..space.dimension {
+		if ident == space.basis_elements[i].symbol {
+			element = *space.basis_elements[i];
+			break;
+		}
+	}
 
-	// Format of a scalar variable is an alphabet character followed by up to 7 digits.
-	// The smallest variable is a0000000 and the largest is Z9999999.
-	// The hashing algorithm (if you can even call it that) can fit all strings in this range in a u32.
-
-    assert((s[0] >= #char "a" && s[0] <= #char "z") || (s[0] >= #char "A" && s[0] <= #char "Z"));
-    assert(s.count <= 8);
-
-    hash:   u64;
-
-    powers: u64 = 1;
-    digit:  u64 = 0;
-	i := s.count-1;
-    while i > 0 {
-        digit  = s[i] - #char "0";
-        digit  *= powers;
-        hash  += digit;
-
-        powers *= 10;
-        
-        i-= 1;
-    }
-
-    if s[0] >= #char "a" && s[0] <= #char "z" {
-        digit  = s[i] - #char "a";
-        digit *= powers;
-        hash += digit;
-    }
-    else {
-        digit  = (s[i] - #char "A") + 26;
-        digit *= powers;
-        hash += digit; 
-    }
-
-	U32_MAX :: 0xFFFF_FFFF;
-    assert(hash <= U32_MAX);
-
-    return cast(u32)hash;
+	return element;
 }
 
-insert_scalar_variable :: (scalar_variables: *Scalar_Variables, hash: u32, symbol: string) {
+match_scalar_variable :: (ident: string) -> bool {
 
-    // Big-O(n)
-    found: bool = false;
-    for i: 0..scalar_variables.hashes.count-1 {
-        if hash == scalar_variables.hashes[i] {
-            found = true;
-            break;
-        }
-    }
-    
-    if !found {
-        array_add(*scalar_variables.hashes,  hash);
-        array_add(*scalar_variables.symbols, symbol);
-    }
+	// Scalar variables are identifiers that have a leading character in the 'allowed-list' for scalar variables and are followed by at least 1 digit.
+	matching_character_prefix: bool = false;
+	for i: 0..space.scalar_variable_prefix_characters.count-1 {
+		if ident[0] == space.scalar_variable_prefix_characters[i] {
+			matching_character_prefix = true;
+			break;
+		}
+	}
 
-    return;
+	followed_by_digit: bool = false;
+	if ident.count > 1 && is_digit(ident[1]) {
+		followed_by_digit = true;
+	}
+
+	return matching_character_prefix && followed_by_digit;
+}
+
+valid_scalar_variable :: (ident: string) -> bool {
+	
+	// Scalar variables are identifiers that have a leading character in the 'allowed-list' for scalar variables and be followed by at *most* two digits.
+	return ident.count <= 3;
 }
 
 coefficient_to_string :: (term: *Term) -> string {
@@ -236,7 +216,7 @@ coefficient_to_string :: (term: *Term) -> string {
 
 			for i: 0..term.factors.count-1 {
 				factor := term.factors[i];
-				scalar_variable := space.scalar_variables.symbols[factor.scalar_variable_index];
+				scalar_variable := decode(factor.scalar_variable);
 				append(*builder, scalar_variable);
 
 				if factor.exponent > 1 {
@@ -264,7 +244,7 @@ coefficient_to_string :: (term: *Term) -> string {
 
 		for i: 0..term.factors.count-1 {
 			factor := term.factors[i];
-			scalar_variable := space.scalar_variables.symbols[factor.scalar_variable_index];
+			scalar_variable := decode(factor.scalar_variable);
 			append(*builder, scalar_variable);
 
 			if factor.exponent > 1 {
@@ -276,6 +256,12 @@ coefficient_to_string :: (term: *Term) -> string {
 	}
 
 	return builder_to_string(*builder);
+}
+
+lookup_variable :: (ident: string) -> bool, M_Element {
+
+	variable, found := table_find(*space.user_variables, ident);
+	return found, variable;
 }
 
 #scope_file
@@ -353,4 +339,81 @@ generate_basis_symbol :: (bits: int, grade: int, _1_element_symbols: [] string) 
 	append(*builder, _1_element_symbols[i]);
 
 	return builder_to_string(*builder);
+}
+
+// This should be revised to not be so cute.
+// Encode and decode scalar variables into u16's so that we don't have to store the text string to represent the variable.
+// This allows 4 bytes to be used (the encoding + exponent) to represent any *valid* scalar variable.
+// When a term contains a product (list) of scalar-variables this keeps the size of that product relatively small.
+// Also allows factors to be ordered based on the u16 key which makes memcmp an available option to compare terms cheaply
+// vs iterating over terms then iterating over liss of factors.
+//
+// An alternative approach is to intern the scalar variable strings. Then to compare two factors you just compare the pointers.
+// Since we have to store the exponent alongside the pointer this makes the size of each factor grow to 16-bytes and we can't
+// sort by pointer so the check would be an iteration over each list of factors.
+//
+// A third approach would be to maintain two parallel lists for scalar variables. A list of hashes and a list of symbols.
+// When you encounter a scalar-variable you hash it (using some stupid simple hash that does powers of ten on place or something)
+// then iterate through your list and look for that hash. If you find it then you return the index otherwise you append the list
+// with the new hash and symbol and store the index in the Factor. If you allow fewer than 65535 scalar-variables the index could
+// fit in a u16 and be used in the same manner as our current encode/decode scheme. The drawback to this approach is if the application
+// is long-running a lot (say 64 for sake of example) of scalar-variables could exist in the parallel lists and if you specify a 
+// single 1-element in a 4-space then in the worst case have to check that list 256 times. This only gets worse the more symbols you add.
+// Could do an ordered insert of the hashes and symbols then binary search on lookup but that complicates the insert to ease the calc and lookup....
+//
+// The most tedious part when it comes to scalar-variables is by far checking for equal terms so going to go with the u16 encoding for now
+// and if it is problematic then we revise. 03.12.2025
+
+
+encode :: (ident: string) -> u16 {
+
+	// Encodes a scalar variable like 'a1' or 'a11' into a 16-bit integer in the following format:
+	//                 byte1                byte2
+	//       -----------------------| ---------------
+	// u16 = [character  num-digits | digit1  digit2]
+	//        ^6-bits    ^2-bits     ^4-bits  ^4-bits  
+	//				
+	
+	assert(ident.count == 2 || ident.count == 3);
+
+	c := cast(u16)(ident[0] - #char "A"); // A = 65, z = = 122, diff = 58 which can be represented in 6 bits
+	n := cast(u16)ident.count - 1;        // n is the number of digits following the character.
+
+	value: u16;
+	value |= c << 10;
+	value |= n <<  8;
+	
+	if n == 2 {
+		value |= cast(u16)(ident[1] - #char "0") << 4;
+		value |= cast(u16)(ident[2] - #char "0") << 0;
+	}
+	else
+	if n == 1 {
+		value |= cast(u16)(ident[1] - #char "0") << 4;
+	}
+
+	return value;
+}
+
+decoder: String_Builder;
+decode :: (value: u16) -> string {
+
+	// Decodes a 16-bit integer like 1296 into the scalar symbol 'B1'
+	// Encoding procedure describes the format of the encoding.
+
+	reset(*decoder);
+	append(*decoder, cast(u8)((value >> 10) & 0x3F) + #char "A");
+
+	count := cast(u8)((value >> 8) & 0x03);
+	
+	if count == 2 {
+		append(*decoder, cast(u8)((value >> 4) & 0xF) + #char "0");
+		append(*decoder, cast(u8)((value >> 0) & 0xF) + #char "0");
+	}
+	else
+	if count == 1 {
+		append(*decoder, cast(u8)((value >> 4) & 0xF) + #char "0");
+	}
+
+	return builder_to_string(*decoder);
 }

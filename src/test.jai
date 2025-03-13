@@ -1,215 +1,153 @@
 #scope_export
 
 main :: () {
-    {
-        Factor :: struct {
-            exponent: 			   u32;
-            scalar_variable_index: u32;
-        }
-
-        Term :: struct {
-            // Represents a single number or a list of scalar-variable factors to represent terms such as "a1" or a product like "a1b2c3"
-            // This is like a tagged union without the tag. A number is implicit and occurs when the count of factors is zero.
-
-            value: float;
-            #place value; multiples: float;
-
-            num_factors: u32;
-            factors:     [] Factor;
-            next: *Term;
-        }
-
-        print("Size of term KEVIN == %\n", size_of(Term));
-    }
-
-    // The Coefficient is a list of terms
-    // The Terms is a list of factors...
-
-    // if we store pointers then we can't memcmp these but if we store offsets then we could
 
     {
-        // could overload operators but don't like that
-        
-        // 03.09.2025
-        Factor :: struct {
-            exponent:      u32;
-            variable_hash: u32;
-        }
-
-        Term :: struct {
-            // Represents either a pure number such as 1, 2 or 3 or contains a list of scalar-variable factors to represent terms
-            // such as "a1" or a product like "a1b2c3"
-            value: float;
-            #place value; multiples: float;
-
-            factors: [] Factor;
-            next: *Term;
-        }
-
-        Basis :: struct {
-            nothing: int;
-        }
-
-        Element :: struct {
-            coefficient: *Term;
-            basis:       *Basis;
-        }
-
-        operator == :: (lterm: Term, rterm: Term) -> bool {
-            // Terms are equal when the following conditions are true.
-            //  1. Each term contains the same number of factors (including zero).
-            //  2. Each term contains the same factors in the same order.
-            //  3. Each factor in the term is raised to the same power.
-            if lterm.factors.count == rterm.factors.count {
-                count := lterm.factors.count;
-                return memcmp(lterm.factors.data, rterm.factors.data, size_of(Factor) * count) == 0;
-            }
-            else {
-                return false;
+        prefix_characters: string = "abcdnpqrsuvABCKLMNPQRS";
+        symbol := "p";
+        for c: prefix_characters {
+            print("Did we find it?\n" );
+            if symbol[0] == c {
+                break;
             }
         }
 
-        /*
-        combine_like_terms
-          Input  = (3 + a1) + (b1 + 4 + a1)
-          Output = (7 + 2a1 + b1)
-          Copy the lhs terms into a new buffer.
-          Iterate over each term in the copy (iterate by index, not .next or when you add to this list you will keep iterating unnecessarily)
-           Iterate over each term in the rhs
-           if terms_are_equal(lterm, rterm) {
-                // This is the body for the 'terms are equal piece'
-                if lterm.factor.count == rterm.factor.count {
-                    count := lterm.factor.count;
-                    return memcmp(lterm.factors.data, rterm.factors.data, size_of(Factor) * count);
-                }
-                else {
-                    return false;
-                }
-                
-                copy.multiples = lterm.multiples + rterm.multiples;
-                // keep track of the previous node then link the previous to the next so that factor is excluded
-                // in future comparisons.
-           }
-           else {
-                couldn't combine terms add the new term!
-                TODO: how do you do this without iterating over the new term?
-           }
-        */
-
-        t1: Term;
-        t2: Term;
-
-        t1.value = 10;
-        t2.value = 20;
-
-        print("Memcmp for pure numbers returns %\n", t1 == t2 );
-
-        t1.factors.data = alloc(1);
-        t1.factors.count = 1;
-        t2.factors.data = alloc(2);
-        t2.factors.count = 1;
-
-        t1.factors[0] = .{ exponent = 1, variable_hash = 10 };
-        t2.factors[0] = .{ exponent = 1, variable_hash = 11 };
-
-        print("Memcmp for factors returns %\n", t1 == t2);
-
-        // then for basis elements we use grade 0 and do what we did in the past
-        // can traverse the list of factors then do a memcmp from the exponent
-
-        print("Size of factor == %\n", size_of(Factor));
-        print("Size of term == %\n",   size_of(Term));
-
-    }
-
-    {
-        MAX_DIMENSION :: 4;
-        Product :: struct {
-            num_factors: int;
-            factors:     [MAX_DIMENSION] Scalar_Variable;
+       
+        builder: String_Builder;
+        for i: 0..25 {
+            append(*builder, #char "a" + i);
+            append(*builder, i);
+            s := builder_to_string(*builder);
+            x := encode(#char "a" + i);
 
         }
 
-        Scalar_Variable :: struct {
-            multiples:        s32;
-            exponent:         s16;
-            identifier_hash:  u16;
-        }
+        x := encode("a1");
+        y := encode("a01");
+        z := encode("b1");
+        w := encode("B1");
 
-        Term_Type :: enum {
-            Value;
-            Variable;
-            Product;
-        }
+        t1 := encode("z99");
+        t2 := encode("Z99");
 
-        Term :: struct {
-            type: Term_Type;
-            union {
-                value:    int;
-                variable: Scalar_Variable;
-                product:  *Product;
-            }
-            next_term: *Term;
-        }
+        print("Encoded x=%, y=%, z=%, w=%, t1=%, t2=%\n", x,y,z,w,t1,t2);
+        print("Decoded x=%, y=%, z=%, w=%, t1=%, t2=%\n", decode(x), decode(y), decode(z), decode(w), decode(t1), decode(t2));
+    
 
-        Basis :: struct {
-            coefficient: Term;
-        }
-
-        /*
-            if lhs.grade == rhs.grade
-                result.coefficient = add_coefficients(lhs.coefficient, rhs.coefficient);
-                result.basis = lhs.basis;
-            
-                
-            add_coefficients(Lterm: Term, Rterm: Term) -> term {
-                result: Term;
-                if Lterm.type == .Value && Rterm.type == .Value {
-                    result.type  = .Value;
-                    result.value = Lterm.value + Rterm.value;
-                }
-                else
-                if (Lterm.type == .Variable && Rterm.type == .Variable) && (Lterm.variable.symbol == Rterm.variable.symbol) {
-                    // a1 + a1
-                }
-                else {
-                    // Iterate over the list of terms
-                }
-            }
-
-        */
-
-        // how would you do this?
-        // you Addition -> BasisElement1 and Basis_Element2
-        // 
-        //                
-        // 
-        // 
-        //        if Lterm.type == .Value && Rterm.type == .Value 
-        // add_coefficients( lhs.coefficient, rhs.coefficient );
-        // result: Term;
-        // 
-
-        // so before we go hog wild let's double check the math here.
-        // 3 + 4
-        // term.type = .Value, 3  term.type = .Value, 4 (now we don't have to hash 1 and have that confusing piece)
-        //   lhs.coefficent.value += rhs.coefficient.value;
-        // 
-        // a1 + a1
-        // term.type = .Variable, a1 term.type == .Variable
-        //   add them together
-        //   term.type = .Variable, term.variable.multiples = add them together. exponent = lhs.exponent, identifier_hash = lhs.identifier_hash;
+        // 4 bytes (32-bit)
+        // char numindices 0 1
+        // char 1 1
+        // they would be represented as the same thing
+        // char 1 1
+        // char 2 0 1
+        // char 2 1 1
         //
-        // 3 + a1
-        // coefficient.type == .Value && coefficient.type == .Variable
-        // this generates a new list of terms with each value
-        // do we just link them together?
-        // result just joins the two links together
-        // basis.coefficient = lhs.coefficient;
-        // basis.coefficient.next = rhs.coefficent;
-            
-        print("Size of term == %\n", size_of(Term));
+
+        // we want ordered insert of factors into a term so we can memcmp them, if you store the strings then that isn't efficient
+        // if you store a pointer then the order isn't defined
+        // 
+        // preferably would like to store
+        //  char 'a'
+        //  index: 01
+        //
+        //  index: 1
+
+        // want to easy encode it and decode it, nothing
+        // it has to be unique so that scalar symbols don't 
+        // then we don't have to store anything about them, we simply search the prefix_characters list then deal with i
+
+
+        // go from left to right, get the length of the identifier
+        // a1  --> 11
+        // a01 --> 101
+        // 
+        // encode a11 -- start at the end and work backwards 
+
+        // encode a 101
+        //        b 2
+        //        c 3
+
+        // okay so the question is how do we encode this to match our scheme?
+        // because we returned an index into a list but now we might not have to do that?
+        //
+        // What if we encoded as 4 bytes
+        // it would be cool to encode and be able to undo the encoding
     }
+
+    {
+        // so now on symbol resolution you would just say
+        // you could still hash them but it isn't necessary. I really don't know how to handle this quite yet
+        // you'd iterate through and check, you'd know that these are
+        // i'd like to be able to do a11 a21 a22 to do it like a matrix, and compare formulas that way
+
+        // so you check and say yes 'it matches the scalar_variables.prefix_characters[i]
+        // then if you allow a01, a00 a10, a01 is one, and you make that two digits, two bytes 'char',0,1
+
+        x: u8 = #char "0";
+        builder: String_Builder;
+        append(*builder, #char "a");
+        append(*builder, x); // could store up to 256
+        append(*builder, #char "1");
+
+        s := builder_to_string(*builder);
+        print("s == %\n", s);
+    }
+   
+   {
+        Node_Kind :: enum u8 {  
+
+            Identifier;
+            Variable;
+            Element;            // element of an exterior space
+            Unary_Operator;     // prefix operators
+            Binary_Operator;    // infix/postfix operators
+            Intrinsic;
+        }
+
+        Ast_Node :: struct {
+            kind: Node_Kind;
+        }
+
+        Ast :: struct {
+            root: *Ast_Node;
+        }
+
+        // So we have two options here, we could just allocate an Element node OR we could try to patch this bad boy up to be a basis element
+        // this would be cool if we could do it.
+
+        // *Variable_Node
+        // *Element_Node
+
+        Identifier_Node :: struct {
+            #as using _kind: Ast_Node; // Identifier --> Variable (could do this for variables) then allocate a new Element for a scalar or basis element.
+            union {
+                name: string;
+                value: int;
+            }
+        }
+
+        ast: Ast;
+        node: *Identifier_Node = talloc(size_of(Identifier_Node));
+        node.kind = .Identifier;
+        node.name = "world";
+
+        ast.root = node;
+
+        if ast.root.kind == .Identifier {
+            ident := cast(*Identifier_Node)ast.root;
+            ident.kind = .Variable;
+            ident.name = "StrongBad";
+        }
+
+        // our variables will be small, so i don't know man doesn't seem like too big of a deal
+        
+        if ast.root.kind == .Variable {
+            var := cast(*Identifier_Node)ast.root;
+            print("var.name == %\n", var.name);
+        }
+
+
+   }
 
     // These are the actual test cases.
     // TODO: Figure out how to test these out! and run these automated on a build!

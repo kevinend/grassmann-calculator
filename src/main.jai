@@ -14,16 +14,35 @@
         Rules: Allow a single character, could also add these to a list.
         p,q,r,s   - points
         a,b,c,u,v - vectors
-        A,B,C     - bivectors
+        A,B,C     - bivectors  (4 there are 6 of these basis) A1*e1|e2 + A2*e2|e3, A B C D E F E = E1e
         K,L,M,N   - line
         P,Q,R,S   - plane
+
+        what you want to happen is that you enter e4 and end up with an undeclared identifier. Not a scalar symbol
+        since it isn't defined on the basis set that you are dealing with. So you take those values and map them.
+        It isn't ideal but that would work for the next time, how you do that is that it needs to fail to resolve
+        as a scalar symbol. So then to match you have to be that character followed by at *most* 3 digits.
+
+        p = e0 + p1*e1 + p2*e2 + p3*e3
+
+        I think we could do that instead and have it work that way.
+        So you declare a set of symbols and then you check if you make that list
+
+        4  6  4
+        1  2  3
 
         Then scalar symbols are P1 P2 P3 P4, any of the alphanumeric characters + an index at the end
         Which is a [u8|index] which is another u8 or a u16
 */
 
-
 main :: () {
+
+    print("Identifier == %\n", size_of(Identifier_Node));
+    print("Variable   == %\n", size_of(Variable_Node));
+    print("Element    == %\n", size_of(Element_Node));
+    print("Unary_Operator  == %\n", size_of(Unary_Operator_Node));
+    print("Binary_Operator == %\n", size_of(Binary_Operator_Node));
+
 
     USER_PROMPT :: "> ";
     success: bool = false;
@@ -33,10 +52,12 @@ main :: () {
     parser:      Parser;
     interpreter: Interpreter;
 
-    dimension: int = 4;
-
+    default_dimension:  int       = 4;
+    default_1_elements: [] string = .["e0","e1","e2","e3"];
+    default_scalar_variable_prefix_characters: string = "abcdnpqrsuvABCKLMNPQRS";
+    
     // Preconditions
-    update_exterior_space(dimension, .["e0","e1","e2","e3"]);
+    update_exterior_space(default_dimension, default_1_elements, default_scalar_variable_prefix_characters);
     initialize_operator_tables();
 
 	input: string;
@@ -66,6 +87,9 @@ main :: () {
 		}
 
         ast := parse(*parser, tokens);
+        descend(ast.root);
+
+        resolve_symbols(*ast, *space);
         descend(ast.root);
 
         reset_temporary_storage();

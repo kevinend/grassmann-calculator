@@ -2,7 +2,7 @@
 
 #scope_export
 
-Node_Kind :: enum u8 {
+Node_Kind :: enum u32 {
     
     /*
         Operators are rolled-up/categorized into either a unary or binary operator node.
@@ -11,20 +11,27 @@ Node_Kind :: enum u8 {
         the operator type whereas a separate 'Addition' node for example would not need this check.
     */
 
+    Error;
     Identifier;
     Variable;
     Element;            // element of an exterior space
-    Unary_Operator;     // prefix operators
-    Binary_Operator;    // infix/postfix operators
+    Unary_Operator;     // prefix/postfix operators
+    Binary_Operator;    // infix operators
     Intrinsic;
 }
 
 Ast_Node :: struct {
     kind: Node_Kind;
+    id:   u32;
 }
 
 Ast :: struct {
     root: *Ast_Node;
+}
+
+Error_Node :: struct {
+    #as using _kind: Ast_Node;
+    message: string;
 }
 
 Identifier_Node :: struct {
@@ -71,12 +78,33 @@ Intrinsic_Node :: struct {
     type: Intrinsic_Type;
 }
 
+new_error_node :: (message: string) -> *Ast_Node { // TODO: Line and character index
+
+    node: *Error_Node = talloc(size_of(Error_Node));
+    assert(node != null);
+
+    node.kind = Node_Kind.Error;
+    node.message = message;
+
+    return node;
+}
+
 new_identifier_node :: (name: string) -> *Ast_Node {
 
     node: *Identifier_Node = talloc(size_of(Identifier_Node));
     assert(node != null);
 
     node.kind = Node_Kind.Identifier;
+    node.name = name;
+    return node;
+}
+
+new_variable_node :: (name: string) -> *Ast_Node {
+
+    node: *Variable_Node = talloc(size_of(Variable_Node));
+    assert(node != null);
+
+    node.kind = Node_Kind.Variable;
     node.name = name;
     return node;
 }
