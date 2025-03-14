@@ -160,6 +160,48 @@ new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> (term:
     return term;
 }
 
+operator == :: (lterm: Term, rterm: Term) -> bool {
+    
+	// Terms are equal when the following conditions are true.
+	//  1. Each term contains the same number of factors (even if the count is zero).
+	//  2. Each term contains the same factors in the same order.
+	//  3. Each factor in the term is raised to the same power.
+	if lterm.factors.count == rterm.factors.count {
+		count := lterm.factors.count;
+
+		return memcmp(lterm.factors.data, rterm.factors.data, size_of(Factor) * count) == 0;
+	}
+	else {
+		return false;
+	}
+}
+
+
+/* 
+STUB:
+combine_like_terms :: (lhs: *Term, rhs: *Term) -> *Term {
+ 
+	// Example:
+	// Input  = (3 + a1) + (b1 + 4 + a1)
+	// Output = (7 + 2a1 + b1)
+	Copy the lhs terms into a new list. Keep track of the number of terms.
+	Iterate over each term in the copy.
+	  -- Iterate by index from previous step
+	  -- If you iterate while .next != null then when you append to your copy from the rhs you will unnecessarily iterate that element over the rest of the rhs)
+	  -- Double-check ^ might not be true, too tired.
+	  Iterate over each term in the rhs.
+		if lterm == rterm {
+			lterm-copy.multiples = lterm.multiples + rterm.multiples;
+			-- can keep track of the previous while iterating rhs and 'remove' this node from the rhs so it isn't constantly checked
+		}
+		else {
+			-- can't combine the two terms so add the rterm to the list of lterms
+		}
+ }
+ 
+*/
+ 
+
 matches_1_element :: (ident: string) -> *Basis_Element {
 
     element: *Basis_Element = null;
