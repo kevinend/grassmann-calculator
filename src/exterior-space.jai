@@ -64,7 +64,8 @@ Term :: struct {
 
 M_Element :: struct {
     // An M-element represents a multi-element. An element that *can* be of mixed grade.
-    ast: *Ast_Node;
+    grade: int      = -1;
+    ast:  *Ast_Node = null;
 }
 
 Exterior_Space :: struct {
