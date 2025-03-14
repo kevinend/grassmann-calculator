@@ -341,29 +341,30 @@ generate_basis_symbol :: (bits: int, grade: int, _1_element_symbols: [] string) 
 	return builder_to_string(*builder);
 }
 
-// This should be revised to not be so cute.
-// Encode and decode scalar variables into u16's so that we don't have to store the text string to represent the variable.
-// This allows 4 bytes to be used (the encoding + exponent) to represent any *valid* scalar variable.
-// When a term contains a product (list) of scalar-variables this keeps the size of that product relatively small.
-// Also allows factors to be ordered based on the u16 key which makes memcmp an available option to compare terms cheaply
-// vs iterating over terms then iterating over liss of factors.
-//
-// An alternative approach is to intern the scalar variable strings. Then to compare two factors you just compare the pointers.
-// Since we have to store the exponent alongside the pointer this makes the size of each factor grow to 16-bytes and we can't
-// sort by pointer so the check would be an iteration over each list of factors.
-//
-// A third approach would be to maintain two parallel lists for scalar variables. A list of hashes and a list of symbols.
-// When you encounter a scalar-variable you hash it (using some stupid simple hash that does powers of ten on place or something)
-// then iterate through your list and look for that hash. If you find it then you return the index otherwise you append the list
-// with the new hash and symbol and store the index in the Factor. If you allow fewer than 65535 scalar-variables the index could
-// fit in a u16 and be used in the same manner as our current encode/decode scheme. The drawback to this approach is if the application
-// is long-running a lot (say 64 for sake of example) of scalar-variables could exist in the parallel lists and if you specify a 
-// single 1-element in a 4-space then in the worst case have to check that list 256 times. This only gets worse the more symbols you add.
-// Could do an ordered insert of the hashes and symbols then binary search on lookup but that complicates the insert to ease the calc and lookup....
-//
-// The most tedious part when it comes to scalar-variables is by far checking for equal terms so going to go with the u16 encoding for now
-// and if it is problematic then we revise. 03.12.2025
+/*
 
+Encode and decode scalar variables into u16's so that we don't have to store the text string to represent the variable.
+This allows 4 bytes to be used (the encoding + exponent) to represent any *valid* scalar variable.
+When a term contains a product (list) of scalar-variables this keeps the size of that product relatively small.
+Also allows factors to be ordered based on the u16 key which makes memcmp an available option to compare terms easily
+vs iterating over terms then iterating over liss of factors.
+
+An alternative approach is to intern the scalar variable strings. Then to compare two factors you just compare the pointers.
+Since we have to store the exponent alongside the pointer this makes the size of each factor grow to 16-bytes and we can't
+sort by pointer so the check would be an iteration over each list of factors.
+
+A third approach would be to maintain two parallel lists for scalar variables. A list of hashes and a list of symbols.
+When you encounter a scalar-variable you hash it (using some stupid simple hash that does powers of ten on place-value or something)
+then iterate through your list and look for that hash. If you find it then you return the index otherwise you append the list
+with the new hash and symbol and store the index in the Factor. If you allow fewer than 65535 scalar-variables the index could
+fit in a u16 and be used in the same manner as our current encode/decode scheme. The drawback to this approach is if the application
+is long-running a lot of scalar-variables could exist in the parallel lists and those checks just take longer and longer to execute.
+Could do an ordered insert of the hashes and symbols then binary search on lookup but that complicates the insert to ease the calc and lookup....
+
+The most tedious part when it comes to scalar-variables is by far checking for equal terms so going to go with the u16 encoding for now
+and if it is problematic then we revise. 03.12.2025
+
+*/
 
 encode :: (ident: string) -> u16 {
 
