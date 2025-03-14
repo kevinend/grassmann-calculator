@@ -57,7 +57,12 @@ main :: () {
     default_scalar_variable_prefix_characters: string = "abcdnpqrsuvABCKLMNPQRS";
     
     // Preconditions
-    update_exterior_space(default_dimension, default_1_elements, default_scalar_variable_prefix_characters);
+    update_exterior_space(
+         default_dimension
+        ,default_1_elements
+        ,default_scalar_variable_prefix_characters
+    );
+    
     initialize_operator_tables();
 
 	input: string;
