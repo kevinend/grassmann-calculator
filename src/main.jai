@@ -37,20 +37,12 @@
 
 main :: () {
 
-    print("Identifier == %\n", size_of(Identifier_Node));
-    print("Variable   == %\n", size_of(Variable_Node));
-    print("Element    == %\n", size_of(Element_Node));
-    print("Unary_Operator  == %\n", size_of(Unary_Operator_Node));
-    print("Binary_Operator == %\n", size_of(Binary_Operator_Node));
-
-
     USER_PROMPT :: "> ";
     success: bool = false;
     quit: bool    = false;
 
     lexer:       Lexer;
     parser:      Parser;
-    interpreter: Interpreter;
 
     default_dimension:  int       = 4;
     default_1_elements: [] string = .["e0","e1","e2","e3"];
