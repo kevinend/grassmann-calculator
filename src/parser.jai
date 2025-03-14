@@ -237,8 +237,7 @@ new_operand :: (token: Token, operands: *Stack(*Ast_Node)) {
 
 new_operand :: (op: Operator, operands: *Stack(*Ast_Node)) {
 
-    // Build the operator AST node using the required number of operands.
-    // Push the constructed node onto the operand stack.
+    // Build the operator AST node using the required number of operands and push the constructed node on the operand stack..
 
     node: *Ast_Node = null;
     if operator_arity[op] == {
@@ -252,8 +251,8 @@ new_operand :: (op: Operator, operands: *Stack(*Ast_Node)) {
             node = new_binary_operator_node(lhs, op, rhs);
         }
         case; {
-            // 02.16.2025 probably should push an error node here!
-            print("Unable to construct operator node, unknow arity for operator %\n", op);
+            message := tprint("Unable to construct operator node, unknown arity for operator %\n", op);
+            node   := new_error_node(message);
         }
     }
 
