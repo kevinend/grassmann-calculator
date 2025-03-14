@@ -2,7 +2,7 @@
 
 #scope_export
 
-Node_Kind :: enum u8 {
+Node_Kind :: enum u32 {
     
     /*
         Operators are rolled-up/categorized into either a unary or binary operator node.
@@ -11,20 +11,28 @@ Node_Kind :: enum u8 {
         the operator type whereas a separate 'Addition' node for example would not need this check.
     */
 
+    Error;
     Identifier;
     Variable;
     Element;            // element of an exterior space
-    Unary_Operator;     // prefix operators
-    Binary_Operator;    // infix/postfix operators
+    Unary_Operator;     // prefix/postfix operators
+    Binary_Operator;    // infix operators
     Intrinsic;
 }
 
 Ast_Node :: struct {
-    kind: Node_Kind;
+    kind:    Node_Kind;
+    node_id: u16;
 }
 
 Ast :: struct {
     root: *Ast_Node;
+    position_metadata: [] Position_Info;
+}
+
+Error_Node :: struct {
+    #as using _kind: Ast_Node;
+    message: string;
 }
 
 Identifier_Node :: struct {
@@ -47,14 +55,14 @@ Element_Node :: struct {
 
 Unary_Operator_Node :: struct {
     #as using _kind: Ast_Node;
-    op:  Operator;
+    op:  Operator_Type;
     rhs: *Ast_Node;
 }
 
 Binary_Operator_Node :: struct {
     #as using _kind: Ast_Node;
     lhs: *Ast_Node;
-    op:  Operator;
+    op:  Operator_Type;
     rhs: *Ast_Node;
 }
 
@@ -71,60 +79,88 @@ Intrinsic_Node :: struct {
     type: Intrinsic_Type;
 }
 
-new_identifier_node :: (name: string) -> *Ast_Node {
+new_error_node :: (node_id: u16, message: string) -> *Ast_Node { // TODO: Line and character index
+
+    node: *Error_Node = talloc(size_of(Error_Node));
+    assert(node != null);
+
+    node.kind    = Node_Kind.Error;
+    node.node_id = node_id;
+    node.message = message;
+
+    return node;
+}
+
+new_identifier_node :: (node_id: u16, name: string) -> *Ast_Node {
 
     node: *Identifier_Node = talloc(size_of(Identifier_Node));
     assert(node != null);
 
-    node.kind = Node_Kind.Identifier;
-    node.name = name;
+    node.kind    = Node_Kind.Identifier;
+    node.node_id = node_id;
+    node.name    = name;
     return node;
 }
 
-new_element_node :: (coefficient: *Term, basis_element: *Basis_Element) -> *Ast_Node {
+new_variable_node :: (node_id: u16, name: string) -> *Ast_Node {
+
+    node: *Variable_Node = talloc(size_of(Variable_Node));
+    assert(node != null);
+
+    node.kind    = Node_Kind.Variable;
+    node.node_id = node_id;
+    node.name    = name;
+    return node;
+}
+
+new_element_node :: (node_id: u16, coefficient: *Term, basis_element: *Basis_Element) -> *Ast_Node {
 
     node: *Element_Node = talloc(size_of(Element_Node));
     assert(node != null);
 
     node.kind        = Node_Kind.Element;
+    node.node_id     = node_id;
     node.coefficient = coefficient;
     node.basis       = basis_element;
 
     return node;
 }
 
-new_unary_operator_node :: (op: Operator, rhs: *Ast_Node) -> *Ast_Node {
+new_unary_operator_node :: (node_id: u16, op: Operator_Type, rhs: *Ast_Node) -> *Ast_Node {
 
     node: *Unary_Operator_Node = talloc(size_of(Unary_Operator_Node));
     if !node { print( "Error!\n" ); }
 
-    node.kind = Node_Kind.Unary_Operator;
-    node.op = op;
-    node.rhs = rhs;
+    node.kind    = Node_Kind.Unary_Operator;
+    node.node_id = node_id;
+    node.op      = op;
+    node.rhs     = rhs;
 
     return node;
 }
 
-new_binary_operator_node :: (lhs: *Ast_Node, op: Operator, rhs: *Ast_Node) -> *Ast_Node {
+new_binary_operator_node :: (node_id: u16, lhs: *Ast_Node, op: Operator_Type, rhs: *Ast_Node) -> *Ast_Node {
 
     node: *Binary_Operator_Node = talloc(size_of(Binary_Operator_Node));
     if !node { print("Error!\n" );}
 
-    node.kind = Node_Kind.Binary_Operator;
-    node.lhs = lhs;
-    node.op = op;
-    node.rhs = rhs;
+    node.kind    = Node_Kind.Binary_Operator;
+    node.node_id = node_id;
+    node.lhs     = lhs;
+    node.op      = op;
+    node.rhs     = rhs;
 
     return node;
 }
 
-new_intrinsic_node :: (type: Intrinsic_Type) -> *Ast_Node {
+new_intrinsic_node :: (node_id: u16, type: Intrinsic_Type) -> *Ast_Node {
 
     node: *Intrinsic_Node = talloc(size_of(Intrinsic_Node));
     if !node { print("Error!\n"); }
 
-    node.kind = Node_Kind.Intrinsic;
-    node.type = type;
+    node.kind    = Node_Kind.Intrinsic;
+    node.node_id = node_id;
+    node.type    = type;
 
     return node;
 }

@@ -44,9 +44,7 @@ Lexer :: struct {
     tokens: [MAX_TOKENS_PER_EXPRESSION] Token;
     num_tokens: int = 0;
 
-    // Track the current token being lexed. Update lexer state on new token and on completion of token and then update metadata on token instance.
-    token_line_number:           int = 0;
-    token_character_index_start: int = 0;
+	token_position: Position_Info;
 
 	TEMP_BUFFER_SIZE :: 64; // dictates the size of identifiers and the number of digits in a number
 
@@ -93,7 +91,7 @@ generate_tokens :: (lexer: *Lexer, input: string) -> [] Token {
 		}
 
 		if begins_identifier(c) {
-			token = compose_token_identifier_keyword_basis_element_or_scalar(lexer);
+			token = compose_token_identifier_or_keyword(lexer);
 			add_token(lexer, token);
 			continue;
 		}
@@ -121,8 +119,8 @@ reset_lexer :: (lexer: *Lexer, input: string) {
     lexer.line_number     = 0;
     lexer.character_index = 0;
 
-    lexer.token_line_number           = 0;
-    lexer.token_character_index_start = 0;
+    lexer.token_position.line_number = 0;
+    lexer.token_position.char_start  = 0;
 }
 
 peek_next_character :: inline (lexer: *Lexer) -> (success: bool, c: u8) {
@@ -147,7 +145,7 @@ report_error :: (lexer: *Lexer, message: string) {
 
 	// Lexer errors are for unrecognized character sequences that we can't turn into tokens.
 	// Error messages are written to temporary storage, will be wiped on each iteration of the program.
-	default_message := tprint( "Lexing error occurred on line number %, character %\n", lexer.token_line_number, lexer.token_character_index_start );
+	default_message := tprint("Lexing error occurred on line number %, character %\n", lexer.token_position.line_number, lexer.token_position.char_start);
 
 	error_message: string;
 	error_message.count = default_message.count + message.count;
@@ -163,7 +161,7 @@ report_error :: (lexer: *Lexer, message: string) {
 
 add_token :: (lexer: *Lexer, token: Token) {
 
-	assert(lexer.num_tokens < Lexer.MAX_TOKENS_PER_EXPRESSION );
+	assert(lexer.num_tokens < Lexer.MAX_TOKENS_PER_EXPRESSION);
 
 	lexer.tokens[lexer.num_tokens] = token;
 	lexer.num_tokens += 1;
@@ -171,18 +169,18 @@ add_token :: (lexer: *Lexer, token: Token) {
 
 tag_token_start :: (lexer: *Lexer) {
 
-    lexer.token_line_number 	       = lexer.line_number;
-	lexer.token_character_index_start  = lexer.character_index;
+    lexer.token_position.line_number = lexer.line_number;
+	lexer.token_position.char_start  = lexer.character_index;
 }
 
 tag_token_end :: inline (lexer: *Lexer, token: *Token) {
 
-    token.line_number           = lexer.token_line_number;
-    token.character_index_start = lexer.token_character_index_start;
-    token.character_index_end   = lexer.character_index-1;
+    token.position.line_number = lexer.token_position.line_number;
+    token.position.char_start  = lexer.token_position.char_start;
+    token.position.char_end    = lexer.character_index-1;
 }
 
-error_token :: () -> (token: Token) {
+error_token :: () -> Token {
 
 	token: Token;
 	token.type = .Error;
@@ -211,7 +209,7 @@ compose_token_literal :: (lexer: *Lexer) -> token: Token {
 	consume_character(lexer); // initial single quote
 	while true {
 		if t.count >= Lexer.TEMP_BUFFER_SIZE {
-            report_error( lexer, "The current literal exceeds the maximum allowed length.\n" );
+            report_error(lexer, "The current literal exceeds the maximum allowed length.\n");
 			return error_token();
 		}
 
@@ -230,7 +228,7 @@ compose_token_literal :: (lexer: *Lexer) -> token: Token {
 		consume_character(lexer);
 	}
 	else {
-		report_error(lexer, "Literal is missing ending single quote.\n");
+		report_error(lexer, "String literal is missing ending single quote.\n");
 		return error_token();
 	}
 
@@ -320,7 +318,7 @@ begins_identifier :: inline (c: u8) -> bool {
 	return is_alpha(c) ||  c == #char "_";
 }
 
-compose_token_identifier_keyword_basis_element_or_scalar :: (lexer: *Lexer) -> token: Token {
+compose_token_identifier_or_keyword :: (lexer: *Lexer) -> token: Token {
 
 	continues_identifier :: inline (c: u8) -> bool {
 		return is_alnum(c);
@@ -389,6 +387,8 @@ compose_token_operator_or_separator :: (c: u8, lexer: *Lexer) -> token: Token {
     // For example, '-' is the token 'Minus' because in the prefix position it is Negation whereas
     // as an infix operator it means substraction.
 
+	consume_character(lexer);
+
 	token: Token;
 	if c == {
 		// Operators
@@ -410,12 +410,17 @@ compose_token_operator_or_separator :: (c: u8, lexer: *Lexer) -> token: Token {
         case #char ";"; { token.type = .Semicolon;    }
 
 		case; {
-			report_error( lexer, "Unrecognized operator or separator." );
+			builder: String_Builder;
+			append(*builder, "Unrecognized operator or separator '");
+			append(*builder, c);
+			append(*builder, "'\n");
+			message := builder_to_string(*builder);
+			report_error(lexer, message);
 			return error_token();
 		}
 	}
 
-    consume_character(lexer);
+    
 	tag_token_end(lexer, *token);
 
 	return token;
