@@ -31,20 +31,20 @@ Globals!
 
  Each token tracks the location/position of the text that it was generated from.
  Each AST node should contain this same information to generate decent error messages.
- Carrying around the position information after the semantic pass bloats the AST Nodes and the problem gets worse if you have to
- distribute products over sums or differences where an AST node could be copied many many times.
+ Carrying around the position information after the semantic pass bloats the AST Nodes and the problem gets worse
+ if you clone the nodes during a distribute operation.
 
- Instead the AST Nodes contain a 'node-id' which is used as an index into a 'position metadata' table containing the position info
- from the token. The node id obviously takes up space but 2 or 4 bytes (depending on how this is implemented) is way better than
- 24 bytes (with position information all defaulting to 64-bit ints).
+ Instead the AST Nodes contain a 'node-id' which is used as an index into a 'position metadata' list containing the position info
+ from the token. The node id obviously takes up space but 2 or 4 bytes (depending on how this is implemented) is smaller than
+ the current size of the position info which is 24 bytes.
 
- The AST for the current execution takes a slice of the position global for read-access. It *must* only be written to from within
- the parser.
+ The AST for the current execution takes a slice of the position global for read-access. It *must* only be written to from within the parser.
 
- Also these are globals since the parser was already written when I decided to pass through this information.
+ Also these are globals since I didn't realize to do this until the symbol resolution and semantic pass steps were implemented.
  If the parser was rewritten these can probably end up in the parser struct and that should just be passed around to each function as well.
-
+ 
 */
+
 node_id: u16;
 position_metadata:  [..] Position_Info;
 
