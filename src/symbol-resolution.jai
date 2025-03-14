@@ -28,7 +28,7 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
             _1_element := matches_1_element(ident.name);
 		    if _1_element {
                 coefficient := new_term(1);
-			    element     := new_element_node(coefficient, _1_element);
+			    element     := new_element_node(ident.node_id, coefficient, _1_element);
 
                 result = element;
                 break;
@@ -40,13 +40,13 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
                 if valid {
                     coefficient := new_term(multiples = 1, exponent = 1, scalar_variable = ident.name );
                     basis       := get_basis_element(0);
-                    element     := new_element_node(coefficient, basis);
+                    element     := new_element_node(ident.node_id, coefficient, basis);
 
                     result = element;
                 }
                 else {
                     message := tprint("Error, parsed identifier '%' as a scalar variable. Scalar variables contain a leading character from this list '%' followed by a maximum of 2 digits.\n", ident.name, space.scalar_variable_prefix_characters);
-                    error   := new_error_node(message);
+                    error   := new_error_node(ident.node_id, message);
 
                     result = error;
                 }
@@ -54,16 +54,16 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
                 break;
             }
 
-            if parent && parent.kind == .Binary_Operator { // shit!
+            if parent && parent.kind == .Binary_Operator {
                 binary_op := cast(*Binary_Operator_Node)parent;
                 if binary_op.op == .Assignment {
-                    var := new_variable_node(ident.name);
+                    var := new_variable_node(ident.node_id, ident.name);
                     result = var;
 
                     break;
                 }
 
-                // dont' break out of the loop here, want to check for undeclared identifiers below!
+                // Do *not* break out of the loop here! Want to check for undeclared identifiers below.
             }
 
             // This is non-traditional but the 'value' from a previous expression is an M-element (a 'multi-element').
@@ -75,12 +75,13 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
             // as a string then try to figure out how to parse it again or something stupid like that.
             found, variable := lookup_variable(ident.name);
             if found {
+                variable.ast.node_id = ident.node_id;
                 result = variable.ast;
                 break;
             }
             else {
                 message := tprint("Error, undeclared identifier '%'\n", ident.name);
-                error   := new_error_node(message);
+                error   := new_error_node(ident.node_id, message);
 
                 result = error;
                 break;
