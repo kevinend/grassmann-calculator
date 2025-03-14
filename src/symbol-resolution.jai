@@ -1,10 +1,11 @@
 /*
     Symbol resolution is the first pass over the AST.
-    Its goal is to inspect identifier nodes and determine if they are variables (to be assigned to), basis elements, or scalar variables.
+    Its goal is to inspect identifier nodes and determine if they are variables (lhs of assignments), basis elements, or scalar variables.
     Also it substitutes AST nodes for already declared and defined variables.
 
-    This pass does *not* validate the semantics of the AST after resolution. The semantic pass occurs after this
-    step and reports errors in the usage of identifiers or operators.
+    This pass does *not* validate the semantics of the AST after resolution.
+    It does generate recognize errors during resolution like undeclared identifiers or malformed scalar variables.
+    These error nodes are added in place of the identifier and will be reported during the semantic pass.
 */
 
 #scope_export
