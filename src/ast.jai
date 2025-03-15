@@ -21,8 +21,8 @@ Node_Kind :: enum u32 {
 }
 
 Ast_Node :: struct {
-    kind:    Node_Kind;
-    node_id: u16;
+    kind: Node_Kind;
+    node_id: u16;       // indexes position metadata list stored on AST for error reporting for the node.
 }
 
 Ast :: struct {

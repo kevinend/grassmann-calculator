@@ -42,7 +42,10 @@ main :: () {
     quit: bool    = false;
 
     lexer:  Lexer;
+    tokens: [] Token;
+
     parser: Parser;
+    ast:    Ast;
 
     default_dimension: int = 4;
     default_1_elements: [] string = .["e0","e1","e2","e3"];
@@ -79,13 +82,20 @@ main :: () {
             continue;
         }
 
-        tokens := generate_tokens(*lexer, input);
-        if lexer.error_detected {
-			print(lexer.error_message);
+        success, tokens = generate_tokens(*lexer, input);
+        if !success {
+            error := get_lexer_error(*lexer);
+			print(error);
 			continue;
 		}
 
-        ast := parse(*parser, tokens);
+        success, ast = parse(*parser, tokens);
+        if !success {
+            error := get_parser_error(*parser);
+            print(error);
+            continue;
+        }
+
     //    descend(ast.root);
 
         resolve_symbols(*ast, *space);

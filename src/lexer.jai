@@ -34,7 +34,7 @@ Lexer :: struct {
     error_message:  string;
 }
 
-generate_tokens :: (lexer: *Lexer, input: string) -> [] Token {
+generate_tokens :: (lexer: *Lexer, input: string) -> bool #must, [] Token {
 
     reset_lexer(lexer, input);
 
@@ -81,7 +81,11 @@ generate_tokens :: (lexer: *Lexer, input: string) -> [] Token {
 		add_token(lexer, token);
     }
 
-    return lexer.tokens;
+    return !lexer.error_detected, lexer.tokens;
+}
+
+get_lexer_error :: (lexer: *Lexer) -> string {
+	return lexer.error_message;
 }
 
 #scope_file
@@ -121,22 +125,24 @@ consume_character :: inline (lexer: *Lexer) {
 	lexer.character_index += 1;
 }
 
-report_error :: (lexer: *Lexer, message: string) {
+flag_error :: (lexer: *Lexer, message: string) {
 
 	// Lexer errors are for unrecognized character sequences that we can't turn into tokens.
 	// Error messages are written to temporary storage, will be wiped on each iteration of the program.
-	default_message := tprint("Lexing error occurred on line number %, character %\n", lexer.token_position.line_number, lexer.token_position.char_start);
 
-	error_message: string;
-	error_message.count = default_message.count + message.count;
-	error_message.data  = talloc( error_message.count );
-	assert( error_message.data != null );
+	line_number := lexer.token_position.line_number;
+	char_start  := lexer.token_position.char_start;
 
-	memcpy( error_message.data, default_message.data, default_message.count );
-	memcpy( error_message.data + default_message.count, message.data, message.count );
+	base := tprint("Lexer Error! Line:%, Char:% -- ", line_number, char_start);
+
+	builder: String_Builder;
+	builder.allocator = temp;
+
+	append(*builder, base);
+	append(*builder, message);
 
 	lexer.error_detected = true;
-	lexer.error_message  = error_message;
+	lexer.error_message  = builder_to_string(*builder);
 }
 
 add_token :: (lexer: *Lexer, token: Token) {
@@ -189,7 +195,7 @@ compose_token_literal :: (lexer: *Lexer) -> token: Token {
 	consume_character(lexer); // initial single quote
 	while true {
 		if t.count >= Lexer.TEMP_BUFFER_SIZE {
-            report_error(lexer, "The current literal exceeds the maximum allowed length.\n");
+            flag_error(lexer, "The current literal exceeds the maximum allowed length.\n");
 			return error_token();
 		}
 
@@ -208,7 +214,7 @@ compose_token_literal :: (lexer: *Lexer) -> token: Token {
 		consume_character(lexer);
 	}
 	else {
-		report_error(lexer, "String literal is missing ending single quote.\n");
+		flag_error(lexer, "String literal is missing ending single quote.\n");
 		return error_token();
 	}
 
@@ -255,7 +261,7 @@ compose_token_number :: (lexer: *Lexer) -> token: Token {
 
 	while true {
 		if t.count > Lexer.TEMP_BUFFER_SIZE {
-			report_error(lexer, "Maximum number of digits exceeded\n");
+			flag_error(lexer, "Maximum number of digits exceeded\n");
 			return error_token();
 		}
 
@@ -331,7 +337,7 @@ compose_token_identifier_or_keyword :: (lexer: *Lexer) -> token: Token {
 
 	while true {
 		if t.count > Lexer.TEMP_BUFFER_SIZE {
-			report_error(lexer, "Identifer exceeded maximum length.");
+			flag_error(lexer, "Identifer exceeded maximum length.");
 			return error_token();
 		}
 
@@ -395,7 +401,7 @@ compose_token_operator_or_separator :: (c: u8, lexer: *Lexer) -> token: Token {
 			append(*builder, c);
 			append(*builder, "'\n");
 			message := builder_to_string(*builder);
-			report_error(lexer, message);
+			flag_error(lexer, message);
 			return error_token();
 		}
 	}

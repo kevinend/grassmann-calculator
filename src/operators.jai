@@ -22,7 +22,7 @@ Operator_Type :: enum u8 {
 }
 
 Operator :: struct {
-    type: Operator_Type;
+    type:     Operator_Type;
     position: Position_Info;
 }
 
@@ -31,27 +31,27 @@ initialize_operator_tables :: () {
     // Map tokens in the prefix position to their corresponding unary operator.
     // Table will be default initialied to zero (No_Op) so all non-operator tokens will return No_Op.
     {
-        token_to_prefix_operator[Token_Type.Minus]               = .{ type = .Negation };
-        token_to_prefix_operator[Token_Type.Exclamation_Point]   = .{ type = .Left_Complement };
-        token_to_prefix_operator[Token_Type.Open_Paren]          = .{ type = .Group_Start };
+        token_to_prefix_operator[Token_Type.Minus]               = .Negation;
+        token_to_prefix_operator[Token_Type.Exclamation_Point]   = .Left_Complement;
+        token_to_prefix_operator[Token_Type.Open_Paren]          = .Group_Start;
     }
 
     // Map tokens in the infix or postfix position to their corresponding operators.
     // Table will be default initialied to zero (No_Op) so all non-operator tokens will return No_Op.
     {
-        token_to_infix_or_postfix_operator[Token_Type.Equals]             = .{ type = .Assignment };
-        token_to_infix_or_postfix_operator[Token_Type.Plus]               = .{ type = .Addition   };
-        token_to_infix_or_postfix_operator[Token_Type.Minus]              = .{ type = .Subtraction };
-        token_to_infix_or_postfix_operator[Token_Type.Asterisk]           = .{ type = .Scalar_Multiplication };
-        token_to_infix_or_postfix_operator[Token_Type.Forward_Slash]      = .{ type = .Scalar_Division };
-        token_to_infix_or_postfix_operator[Token_Type.Caret]              = .{ type = .Scalar_Exponentiation };
+        token_to_infix_or_postfix_operator[Token_Type.Equals]             = .Assignment;
+        token_to_infix_or_postfix_operator[Token_Type.Plus]               = .Addition;
+        token_to_infix_or_postfix_operator[Token_Type.Minus]              = .Subtraction;
+        token_to_infix_or_postfix_operator[Token_Type.Asterisk]           = .Scalar_Multiplication;
+        token_to_infix_or_postfix_operator[Token_Type.Forward_Slash]      = .Scalar_Division;
+        token_to_infix_or_postfix_operator[Token_Type.Caret]              = .Scalar_Exponentiation;
 
-        token_to_infix_or_postfix_operator[Token_Type.Pipe]               = .{ type = .Exterior_Product };
-        token_to_infix_or_postfix_operator[Token_Type.Ampersand]          = .{ type = .Regressive_Product };
-        token_to_infix_or_postfix_operator[Token_Type.Exclamation_Point]  = .{ type = .Right_Complement };
-        token_to_infix_or_postfix_operator[Token_Type.Open_Paren]         = .{ type = .Function_Call };
-        token_to_infix_or_postfix_operator[Token_Type.Closed_Paren]       = .{ type = .Group_End };
-        token_to_infix_or_postfix_operator[Token_Type.Comma]              = .{ type = .Function_Argument_Separator };
+        token_to_infix_or_postfix_operator[Token_Type.Pipe]               = .Exterior_Product;
+        token_to_infix_or_postfix_operator[Token_Type.Ampersand]          = .Regressive_Product;
+        token_to_infix_or_postfix_operator[Token_Type.Exclamation_Point]  = .Right_Complement;
+        token_to_infix_or_postfix_operator[Token_Type.Open_Paren]         = .Function_Call;
+        token_to_infix_or_postfix_operator[Token_Type.Closed_Paren]       = .Group_End;
+        token_to_infix_or_postfix_operator[Token_Type.Comma]              = .Function_Argument_Separator;
         
     }
 
@@ -100,20 +100,24 @@ initialize_operator_tables :: () {
     return;
 }
 
-// Attempts to convert a token into an operator. If there is no mapping from the token to an operator
-// then it will return 0 or 'No_Op' from the lookup.
+// Attempts to convert a token into an operator. 
+// If there is no mapping from the token to an operator then it will return 0 or 'No_Op' from the lookup.
 attempt_to_convert_token_to_prefix_operator :: (token: Token) -> Operator {
     
     op: Operator;
     op.position = token.position;
-    return token_to_prefix_operator[token.type];
+    op.type     = token_to_prefix_operator[token.type];
+
+    return op;
 }
 
 attempt_to_convert_token_to_infix_or_postfix_operator :: (token: Token) -> Operator {
 
     op: Operator;
     op.position = token.position;
-    return token_to_infix_or_postfix_operator[token.type];
+    op.type     = token_to_infix_or_postfix_operator[token.type];
+    
+    return op;
 }
 
 is_operator :: (op: Operator) -> bool {
@@ -130,7 +134,7 @@ get_operator_arity :: (op: Operator) -> u8 {
 #scope_file
 
 // These are sparse static tables intialized a single time on application startup and used throughout the lifecycle of the application by the parser.
-token_to_prefix_operator           : [Token_Type.Count]      Operator;
-token_to_infix_or_postfix_operator : [Token_Type.Count]      Operator;
+token_to_prefix_operator           : [Token_Type.Count]      Operator_Type;
+token_to_infix_or_postfix_operator : [Token_Type.Count]      Operator_Type;
 operator_precedence                : [Operator_Type.Count]   u8;
 operator_arity                     : [Operator_Type.Count]   u8;
