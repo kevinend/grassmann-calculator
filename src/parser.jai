@@ -314,11 +314,8 @@ apply_operators_until_group_start :: (parser: *Parser) {
         stack_push(*operands, operand);
     }
 
-    /* TODO: Report error in the parser!
-    message := tprint("Unmatched closing paranthesis in expression.");
-    error   := new_error_node(node_id, message);
-    stack_push(*operands, error);
-    */
+    // This would be the case of a missing left paren for a right paren!
+    print("Did it happen here?");
 
     return;
 }
@@ -365,12 +362,7 @@ apply_remaining_operators :: (parser: *Parser) -> *Ast_Node {
     while !stack_is_empty(operators) {
         op := stack_pop(*operators);
         if op.type == .Group_Start || op.type == .Function_Call {
-            /* TODO: This is a parser error and should be reported as such!
-            message := tprint("Unmatched parentheses found in expression.");
-            error   := new_error_node(node_id, message);
-            stack_push(operands, error);
-            */
-
+            flag_error(parser, op.position, "Unmatched parantheses found in expression.");
             break;
         }
 
