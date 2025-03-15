@@ -186,7 +186,7 @@ parse_expression :: (parser: *Parser) -> bool, Ast {
             }
 
             if op.type == .Group_End {
-                apply_operators_until_group_start(parser);
+                apply_operators_until_group_start(parser, op);
             }
             else {
                 // Apply operators with higher precedence than our current operator.
@@ -287,7 +287,7 @@ apply_operator :: (parser: *Parser, op: Operator) -> *Ast_Node {
     return node;
 }
 
-apply_operators_until_group_start :: (parser: *Parser) {
+apply_operators_until_group_start :: (parser: *Parser, closing_paren: Operator) {
 
     // Build new operand nodes with the operator at the head of the stack until we reach either .Group_Start or .Function_Call.
     // If we reach the end of the stack before finding a match then the expression has an unmatched open parenthesis.
@@ -314,8 +314,8 @@ apply_operators_until_group_start :: (parser: *Parser) {
         stack_push(*operands, operand);
     }
 
-    // This would be the case of a missing left paren for a right paren!
-    print("Did it happen here?");
+    // Failed to find the matching opening paren if we ended up here!
+    flag_error(parser, closing_paren.position, "Unmatched closing parentheses found in expression.");
 
     return;
 }
@@ -362,7 +362,7 @@ apply_remaining_operators :: (parser: *Parser) -> *Ast_Node {
     while !stack_is_empty(operators) {
         op := stack_pop(*operators);
         if op.type == .Group_Start || op.type == .Function_Call {
-            flag_error(parser, op.position, "Unmatched parantheses found in expression.");
+            flag_error(parser, op.position, "Unmatched open parantheses found in expression.");
             break;
         }
 
