@@ -18,9 +18,15 @@ resolve_symbols :: (ast: *Ast, space: *Exterior_Space) {
 
 #scope_file
 
+// TODO: v = x is not reporting an undeclared identifier!! x is getting listed as a variable, interesting (LHS vs RHS)
+
 resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_Node {
 
     result := node;
+    if node.kind == .Error {
+        return result;
+    }
+    else
     if node.kind == .Identifier {
         ident := cast(*Identifier_Node)node;
 
@@ -46,7 +52,7 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
                     result = element;
                 }
                 else {
-                    message := tprint("Error, parsed identifier '%' as a scalar variable. Scalar variables contain a leading character from this list '%' followed by a maximum of 2 digits.\n", ident.name, space.scalar_variable_prefix_characters);
+                    message := tprint("Parsed identifier '%' as a scalar variable. Scalar variables contain a leading character from the list '%' followed by a maximum of 2 digits.", ident.name, space.scalar_variable_prefix_characters);
                     error   := new_error_node(ident.node_id, message);
 
                     result = error;
@@ -81,7 +87,7 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
                 break;
             }
             else {
-                message := tprint("Error, undeclared identifier '%'\n", ident.name);
+                message := tprint("Undeclared identifier '%'.", ident.name);
                 error   := new_error_node(ident.node_id, message);
 
                 result = error;

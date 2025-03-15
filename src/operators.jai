@@ -26,12 +26,6 @@ Operator :: struct {
     position: Position_Info;
 }
 
-// These are sparse static tables intialized a single time on application startup and used throughout the lifecycle of the application by the parser.
-token_to_prefix_operator           : [Token_Type.Count]      Operator;
-token_to_infix_or_postfix_operator : [Token_Type.Count]      Operator;
-operator_precedence                : [Operator_Type.Count]   u8;
-operator_arity                     : [Operator_Type.Count]   u8;
-
 initialize_operator_tables :: () {
     
     // Map tokens in the prefix position to their corresponding unary operator.
@@ -105,3 +99,38 @@ initialize_operator_tables :: () {
 
     return;
 }
+
+// Attempts to convert a token into an operator. If there is no mapping from the token to an operator
+// then it will return 0 or 'No_Op' from the lookup.
+attempt_to_convert_token_to_prefix_operator :: (token: Token) -> Operator {
+    
+    op: Operator;
+    op.position = token.position;
+    return token_to_prefix_operator[token.type];
+}
+
+attempt_to_convert_token_to_infix_or_postfix_operator :: (token: Token) -> Operator {
+
+    op: Operator;
+    op.position = token.position;
+    return token_to_infix_or_postfix_operator[token.type];
+}
+
+is_operator :: (op: Operator) -> bool {
+    return op.type != .No_Op;
+}
+
+get_operator_precedence :: (op: Operator) -> u8 {
+    return operator_precedence[op.type];
+}
+get_operator_arity :: (op: Operator) -> u8 {
+    return operator_arity[op.type];
+}
+
+#scope_file
+
+// These are sparse static tables intialized a single time on application startup and used throughout the lifecycle of the application by the parser.
+token_to_prefix_operator           : [Token_Type.Count]      Operator;
+token_to_infix_or_postfix_operator : [Token_Type.Count]      Operator;
+operator_precedence                : [Operator_Type.Count]   u8;
+operator_arity                     : [Operator_Type.Count]   u8;

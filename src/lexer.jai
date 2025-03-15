@@ -2,30 +2,10 @@
 	The lexer takes user input and turns it into a list of tokens. 
 	The tokens are supplied to the parser which converts them into an Abstract Syntax Tree.
 
-	Note: Identifiers are converted to one of four token types.
-	1. Identifiers
-	2. Keywords
-	3. Basis_Elements
-	4. Scalars (symbolic scalars like 'a1', b2', etc)
-
-	(1) and (2) are common in a lexer but (3) and (4) are not. 
-	Traditionally if a language supports things like variables, functions, etc that are all 'identifiers' of some
-	sort then those get converted into an 'Identifier' token and resolved later as a pass over the AST when
-	more context (other nodes) are available.
-
-	(3) and (4) were initially implemented in the way described above as part of a 'symbol-resolution' pass
-	over the AST. However, we don't need additional context for what a basis element is. If it matches one of the
-	currently declared 1-elements then it is a basis element. We don't have to wait for another time in the application
-	to do this comparison so might as well do it as early as possible which is here in the lexer.
-
-	Scalars aren't as straight-forward. They could be implemented as context-sensitive identifiers such as those used with
-	'scalar operations' like scalar-multiplication or scalar-addition. This would require the implementation described above
-	where the lexer generates an 'Identifier' token and a separate pass over the AST resolves it to a scalar based on its location in the AST.
-
-	For this current iteration of the application a strict selection criteria/pattern is imposed on scalar symbols. 
-	They are defined as a single ASCII character 'a-z' or 'A-Z' followed by a maximum of a 3 digit index such as 'a1', 'a01', or 'a001'.
-	This means that during lexing we *can* identify if an identifier is just a scalar symbol. Whether it is used in a valid location
-	(such as part of a scalar multiplication) can be determined as part of a semantic pass over the AST.
+	The lexer can and will report errors immediately. This makes error reporting split across different
+	parts of the application. However, having the semantic pass report all errors can cause issues since
+	garbage out of the lexer pollutes the parser then the AST so that errors can be completely
+	mangled by the time they are finally reported on.
 */
 
 #scope_export
@@ -46,11 +26,11 @@ Lexer :: struct {
 
 	token_position: Position_Info;
 
-	TEMP_BUFFER_SIZE :: 64; // dictates the size of identifiers and the number of digits in a number
+	TEMP_BUFFER_SIZE :: 64; // dictates the *max* size of identifiers and the number of digits in a number.
 
 	temp_buffer: [TEMP_BUFFER_SIZE] u8;
 
-    error_reported: bool;
+    error_detected: bool;
     error_message:  string;
 }
 
@@ -62,14 +42,15 @@ generate_tokens :: (lexer: *Lexer, input: string) -> [] Token {
 	success: bool;
 	token: Token;
 
-    while true {
-        success, c = peek_next_character(lexer);
-        while success && is_space(c) {
+    while true && !lexer.error_detected {
+
+        c = peek_next_character(lexer);
+        while c && is_space(c) {
             consume_character(lexer);
-            success, c = peek_next_character(lexer);
+            c = peek_next_character(lexer);
         }
 
-        if !success {
+        if !c {
             // consumed all available input
             token = compose_token_end_of_input(lexer);
 			add_token(lexer, token);
@@ -107,7 +88,7 @@ generate_tokens :: (lexer: *Lexer, input: string) -> [] Token {
 
 reset_lexer :: (lexer: *Lexer, input: string) {
 
-    lexer.error_reported = false;
+    lexer.error_detected = false;
 
     lexer.input = input;
 
@@ -123,14 +104,13 @@ reset_lexer :: (lexer: *Lexer, input: string) {
     lexer.token_position.char_start  = 0;
 }
 
-peek_next_character :: inline (lexer: *Lexer) -> (success: bool, c: u8) {
+peek_next_character :: inline (lexer: *Lexer) -> u8 {
 
 	if (lexer.input.count - lexer.cursor) > 0 {
-		return true, lexer.input[lexer.cursor];
+		return lexer.input[lexer.cursor];
 	}
-	else {
-		return false, 0;
-	}
+	
+	return 0;
 }
 
 consume_character :: inline (lexer: *Lexer) {
@@ -155,7 +135,7 @@ report_error :: (lexer: *Lexer, message: string) {
 	memcpy( error_message.data, default_message.data, default_message.count );
 	memcpy( error_message.data + default_message.count, message.data, message.count );
 
-	lexer.error_reported = true;
+	lexer.error_detected = true;
 	lexer.error_message  = error_message;
 }
 
@@ -213,8 +193,8 @@ compose_token_literal :: (lexer: *Lexer) -> token: Token {
 			return error_token();
 		}
 
-		success, c = peek_next_character(lexer);
-		if success && continues_literal(c) {
+		c = peek_next_character(lexer);
+		if c && continues_literal(c) {
 			t.data[t.count] = c;
 			t.count += 1;
 			consume_character(lexer);
@@ -279,8 +259,8 @@ compose_token_number :: (lexer: *Lexer) -> token: Token {
 			return error_token();
 		}
 
-		success, c = peek_next_character(lexer);
-		if success && continues_number(c) {
+		c = peek_next_character(lexer);
+		if c && continues_number(c) {
 			consume_character(lexer);
 			if c == #char "_" { 
 				continue; 
@@ -344,7 +324,7 @@ compose_token_identifier_or_keyword :: (lexer: *Lexer) -> token: Token {
 	t.data  = lexer.temp_buffer.data;
 	t.count = 0;
 
-	success, c = peek_next_character(lexer);
+	c = peek_next_character(lexer);
 	t.data[0]  = c; // using .data to ignore array bounds checking
 	t.count   += 1;
 	consume_character(lexer);
@@ -355,8 +335,8 @@ compose_token_identifier_or_keyword :: (lexer: *Lexer) -> token: Token {
 			return error_token();
 		}
 
-		success, c = peek_next_character(lexer);
-		if success && continues_identifier(c) {
+		c = peek_next_character(lexer);
+		if c && continues_identifier(c) {
 			t.data[t.count] = c; // .data to ignore array bounds checking
 			t.count += 1;
 			consume_character(lexer);

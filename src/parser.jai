@@ -22,7 +22,7 @@ Parser :: struct {
 
     mode:       Mode;
     operators:  Stack(Operator);
-    operands:   Stack(*Ast_Node); 
+    operands:   Stack(*Ast_Node);
 }
 
 /*
@@ -42,14 +42,14 @@ Globals!
 
  Also these are globals since I didn't realize to do this until the symbol resolution and semantic pass steps were implemented.
  If the parser was rewritten these can probably end up in the parser struct and that should just be passed around to each function as well.
- 
+
 */
 
 node_id: u16;
 position_metadata:  [..] Position_Info;
 
 parse :: (parser: *Parser, tokens: [] Token) -> Ast {
-    
+
     ast: Ast;
     reset_parser(parser, tokens);
 
@@ -58,7 +58,7 @@ parse :: (parser: *Parser, tokens: [] Token) -> Ast {
     push_context parser_context {
         ast = parse_expression(parser);
     }
-    
+
     return ast;
 }
 
@@ -75,7 +75,7 @@ descend :: (node: *Ast_Node, indent: int = 0) {
 
     if node.kind == .Error {
         error := cast(*Error_Node)node;
-        print("(%) %", error.node_id, error.message);
+        print("(%) Error Node == %\n", error.node_id, error.message);
     }
     else
     if node.kind == .Unary_Operator {
@@ -96,7 +96,7 @@ descend :: (node: *Ast_Node, indent: int = 0) {
     else
     if node.kind == .Element {
         element := cast(*Element_Node)node;
-        print( 
+        print(
 			"(%) Element (Coefficient=%, Grade=%, Symbol=%, Bits=%)\n"
             ,element.node_id
             ,coefficient_to_string(element.coefficient)
@@ -144,64 +144,62 @@ reset_parser :: (parser: *Parser, tokens: [] Token) {
 
 parse_expression :: (parser: *Parser) -> Ast {
 
-    using parser; // short-hand so we don't have to say parser.field all the time.
+    using parser;
 
     while true {
         token := consume_token(parser);
-        if token.type == .Semicolon { break; }
-        
+        if token.type == .Semicolon { break; } // TODO: Or parser reports an error!
+
         if parser.mode == .Prefix {
-            op := token_to_prefix_operator[token.type];
-            if op.type {
-                op.position = token.position;
+            op := attempt_to_convert_token_to_prefix_operator(token);
+            if is_operator(op) {
                 stack_push(*operators, op);
             }
             else {
-                new_operand(token, *operands);
+                operand := new_operand(parser, token);
+                stack_push(*operands, operand);
                 parser.mode = .Infix_or_Postfix;
             }
         }
         else
         if parser.mode == .Infix_or_Postfix {
-            op := token_to_infix_or_postfix_operator[token.type];
-            op.position = token.position;
-            if !op.type { 
-                // so this would be "identifier identifier"
-                // we also want to catch like "identifier operator" that isn't postfix for some reason "e1-" crashed the stack. need to investigate
-                print("Error!\n"); 
-                continue; 
+            op := attempt_to_convert_token_to_infix_or_postfix_operator(token);
+            if !is_operator(op) {
+                // Expected a postfix or infix operator between operands!
+                /* TODO: report this as a parser error, don't pass through to the semantic pass
+                if token.type == .Identifier {
+                    token.type = .Error;
+                    token.text =  tprint("Expected a post-fix operator or an infix operator between identifiers.");
+
+                    add_operand(parser, token);
+                }
+                */
+                continue;
             }
 
             if op.type == .Right_Complement {
                 // Post-fix operator that needs to stay infix or postfix mode since not expecting another prefix operator or operand.
-                apply_operators_with_greater_precedence_then_push(op, *operators, *operands);
+                apply_operators_with_greater_precedence_then_push(parser, op);
                 continue;
             }
-            
+
             if op.type == .Group_End {
-                apply_operators_until_group_start(*operators, *operands);
+                apply_operators_until_group_start(parser);
             }
             else {
                 // Apply operators with higher precedence than our current operator.
                 // Once complete the operator stack is either empty or our operator has a higher precedence then the current head of the stack.
                 // In either case, make our operator the new head of the operators stack.
-                apply_operators_with_greater_precedence_then_push(op, *operators, *operands);     
+                apply_operators_with_greater_precedence_then_push(parser, op);
                 parser.mode = .Prefix;
             }
         }
     }
 
     ast: Ast;
-    success, root := apply_remaining_operators(*operators, *operands);
-    if success {
-        ast.root = root;
-        ast.position_metadata = position_metadata;
-    }
-    else {
-        print("Parsing failed!\n");
-        ast.root = null;
-    }
-    
+    ast.root = apply_remaining_operators(parser);
+    ast.position_metadata = position_metadata;
+
     return ast;
 }
 
@@ -216,10 +214,28 @@ consume_token :: (parser: *Parser) -> Token {
     return token;
 }
 
-// There are two ways to generate a new operand on the operands stack.
-//  (1) Parse a token that is the left or right-hand side of an operator such as an identifier, basis element, scalar, literal, etc.
-//  (2) Applying an operator to operands within the stack generating a new operand node.
-new_operand :: (token: Token, operands: *Stack(*Ast_Node)) {
+push_operator :: (parser: *Parser, op: Operator) {
+
+    using parser;
+    stack_push(*operators, op);
+}
+
+push_operand :: (parser: *Parser, operand: *Ast_Node) {
+
+    using parser;
+    stack_push(*operands, operand);
+}
+
+
+/*
+    The following two procedures generate a new operand on the operands stack.
+      1. Convert a token into its respective AST Node type.
+      2. Applying an operator to operands within the stack generating a new operand node.
+*/
+
+new_operand :: (parser: *Parser, token: Token) -> *Ast_Node {
+
+    using parser;
 
     node: *Ast_Node = null;
     array_add(*position_metadata, token.position);
@@ -246,49 +262,57 @@ new_operand :: (token: Token, operands: *Stack(*Ast_Node)) {
     if token.type == .Keyword_Basis {
         node = new_intrinsic_node(node_id, .Basis);
     }
-
-    stack_push(operands, node);
+    else
+    if token.type == .Error {
+        node = new_error_node(node_id, token.text);
+    }
 
     node_id += 1;
-    return;
+    
+    return node;
 }
 
-new_operand :: (op: Operator, operands: *Stack(*Ast_Node)) {
+apply_operator :: (parser: *Parser, op: Operator) -> *Ast_Node #must {
 
-    // Build the operator AST node using the required number of operands and push the constructed node on the operand stack..
+    // Build the operator AST node using the required number of operands and push the constructed node on the *operand* stack..
+
+    using parser;
 
     node: *Ast_Node = null;
     array_add(*position_metadata, op.position);
 
-    if operator_arity[op.type] == {
+    if get_operator_arity(op) == {
         case 1; {
-            rhs := stack_pop(operands);
+            rhs := stack_pop(*operands);
             node = new_unary_operator_node(node_id, op.type, rhs);
         }
         case 2; {
-            rhs := stack_pop(operands);
-            lhs := stack_pop(operands);
+            rhs := stack_pop(*operands);
+            lhs := stack_pop(*operands);
             node = new_binary_operator_node(node_id, lhs, op.type, rhs);
         }
         case; {
-            message := tprint("Unable to construct operator node, unknown arity for operator %\n", op.type);
-            node   := new_error_node(node_id, message);
+            /* TODO: Parser should report error!
+            message := tprint("Unable to construct operator node, unknown arity for operator '%'.", op.type);
+            node     = new_error_node(node_id, message);
+            */
         }
     }
 
-    stack_push(operands, node);
-    
     node_id += 1;
-    return;          
+
+    return node;
 }
 
-apply_operators_until_group_start :: (operators: *Stack(Operator), operands: *Stack(*Ast_Node)) {
+apply_operators_until_group_start :: (parser: *Parser) {
 
     // Build new operand nodes with the operator at the head of the stack until we reach either .Group_Start or .Function_Call.
     // If we reach the end of the stack before finding a match then the expression has an unmatched open parenthesis.
 
+    using parser;
+
     while !stack_is_empty(operators) {
-        op := stack_pop(operators);
+        op := stack_pop(*operators);
         if op.type == {
             case .Group_Start; { return; }
             case .Function_Call; {
@@ -297,67 +321,87 @@ apply_operators_until_group_start :: (operators: *Stack(Operator), operands: *St
                 //  (1) Single arg will have the rhs of the binary operator node for the function call be 'arg1'
                 //  (2) Multi-arg  will have the rhs of the binary operator node for the function call be another binary operator of type 'Function_Argument_Separator'
                 //      whose lhs and rhs are either the args or another 'Function_Argument_Separator' containing more arguments of the function. Rinse and repeat for all the args in the function call.
-                new_operand(op, operands);
+                operand := apply_operator(parser, op);
+                stack_push(*operands, operand);
                 return;
             }
         }
 
-        new_operand(op, operands);
+        operand := apply_operator(parser, op);
+        stack_push(*operands, operand);
     }
 
-    print("Unmatched closing parenthesis in expression\n");
+    /* TODO: Report error in the parser!
+    message := tprint("Unmatched closing paranthesis in expression.");
+    error   := new_error_node(node_id, message);
+    stack_push(*operands, error);
+    */
+
     return;
 }
 
-apply_operators_with_greater_precedence_then_push :: (op: Operator, operators: *Stack(Operator), operands: *Stack(*Ast_Node)) {
+apply_operators_with_greater_precedence_then_push :: (parser: *Parser, op: Operator) {
 
     // Build new operand nodes using the operator at the head of the stack while it has a higher precedence than the currently parsed operator.
+    using parser;
 
-    op_precedence := operator_precedence[op.type];
+    op_precedence := get_operator_precedence(op);
     while !stack_is_empty(operators) {
         head_op            := stack_peek(operators);
-        head_op_precedence := operator_precedence[head_op.type];
+        head_op_precedence := get_operator_precedence(head_op);
 
         // While parsing a function call or grouping/subexpression () we want to continue to push operators and operands within the group until we hit the closing paren.
         // Operators within the grouping symbols should follow the standard rules of comparing operator precedence and applying in their defined order. However, we want
-        // to skip the comparisons of any infix or postfix operators with the grouping symbols themselves in the operator stack. Once we hit the closing paren 
+        // to skip the comparisons of any infix or postfix operators with the grouping symbols themselves in the operator stack. Once we hit the closing paren
         // we apply the pushed operators building the appropriate Ast using our other application function.
-        
+
         if head_op.type == {
             case .Function_Call;               { break; }
             case .Function_Argument_Separator; { break; }
             case .Group_Start;                 { break; }
         }
 
-        if head_op_precedence > op_precedence { 
-            head_op = stack_pop(operators);
-            new_operand(head_op, operands);
+        if head_op_precedence > op_precedence {
+            head_op  = stack_pop(*operators);
+
+            operand := apply_operator(parser, head_op);
+            stack_push(*operands, operand);
         }
         else { break; }
     }
 
-    stack_push(operators,op);
-
+    stack_push(*operators, op);
     return;
 }
 
-apply_remaining_operators :: (operators: *Stack(Operator), operands: *Stack(*Ast_Node)) -> bool, *Ast_Node {
+apply_remaining_operators :: (parser: *Parser) -> *Ast_Node {
 
     // Apply the remaining operators left on the stack returning the AST as the last operand node on successful parse.
+    using parser;
+
     while !stack_is_empty(operators) {
-        op := stack_pop(operators);
+        op := stack_pop(*operators);
         if op.type == .Group_Start || op.type == .Function_Call {
-            print("Unmatched parentheses found in expression!");
+            /* TODO: This is a parser error and should be reported as such!
+            message := tprint("Unmatched parentheses found in expression.");
+            error   := new_error_node(node_id, message);
+            stack_push(operands, error);
+            */
+
             break;
         }
-        
+
         // TODO: Robustness here!
         // "e1-" this will be parsed as the infix operator subtraction but missing the rhs operand.
         // We'd need to check the arity to make sure it requires two arguments then report that it is missing the rhs.
-        new_operand(op, operands);
+        operand := apply_operator(parser, op);
+        stack_push(*operands, operand);
     }
 
-    // On successful parse, we should have a single operand node.
-    if stack_count(operands) == 1 { return true, stack_pop(operands); }
-    else                          { return false, null; }
+    // On successful parse we should have a single operand that contains the entire tree.
+    // There *can* be error nodes at the head of the operand's stack so we always return the head element.
+    // The symbol resolution pass will forward the error node along to the semantic pass which will ultimately report
+    // the error.
+
+    return stack_pop(*operands);
 }
