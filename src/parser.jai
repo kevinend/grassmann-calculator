@@ -12,6 +12,15 @@
     between two basis elements (which is not defined), assigning an expression to a scalar symbol, or making a function
     call with an unrecognized intrinsic, undefined symbols (using a symbol prior to it's definition), etc..
 
+    --Expected unary operator or operand. Found binary operator X, "++"
+    --Missing left parantheses "(3 + 4))"
+    --Missing argument in binary expression would be "e1-"
+    --Missing argument in binary expression e1|)
+    --Missing argument in binary expression e1|&
+    --Unmatched closing paranthesis found in expression ((3 + 4
+    --Unmatched closing paranthesis found in expression ((3 + 4)
+    --Missing argument in binary expression 'Addition'.e1|e2 + e1|e2 +
+
 */
 
 #scope_export
@@ -184,7 +193,7 @@ parse_expression :: (parser: *Parser) -> bool, Ast {
 
             nonprefix_op := attempt_to_convert_token_to_infix_or_postfix_operator(token);
             if is_operator(nonprefix_op) {
-                flag_error(parser, nonprefix_op.position, "Expected unary operator or argument.");
+                flag_error(parser, nonprefix_op.position, "Expected unary operator or an identifier.");
                 continue;
             }
 
