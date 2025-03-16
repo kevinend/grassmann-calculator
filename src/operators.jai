@@ -76,6 +76,7 @@ initialize_operator_tables :: () {
         operator_precedence[Operator_Type.Function_Call]               = 11;
         operator_precedence[Operator_Type.Group_Start]                 = 11;
         operator_precedence[Operator_Type.Group_End]                   = 11;
+
     }
 
     // Map an operator to the number of arguments it takes which is known as a function's arity.

@@ -128,6 +128,9 @@ reset_parser :: (parser: *Parser, tokens: [] Token) {
 
     parser.mode = .Prefix;
 
+    stack_reset(*parser.operands);
+    stack_reset(*parser.operators);
+
     parser.node_id = 0;
     array_reset(*parser.position_metadata);
 
@@ -179,7 +182,7 @@ parse_expression :: (parser: *Parser) -> bool, Ast {
                 continue;
             }
 
-            if op.type == .Right_Complement {
+            if op.type == .Right_Complement { //TODO: could put this in the else and put the if in there to continue instead of switch parser modes!
                 // Post-fix operator that needs to stay infix or postfix mode since not expecting another prefix operator or operand.
                 apply_operators_with_greater_precedence_then_push(parser, op);
                 continue;
@@ -268,13 +271,31 @@ apply_operator :: (parser: *Parser, op: Operator) -> *Ast_Node {
 
     if get_operator_arity(op) == {
         case 1; {
-            rhs := stack_pop(*operands);
-            node = new_unary_operator_node(node_id, op.type, rhs);
+            if stack_count(operands) >= 1 {
+                rhs := stack_pop(*operands);
+                node = new_unary_operator_node(node_id, op.type, rhs);
+            }
+            else {
+                message := tprint("Unary operator '%' found but missing argument.", op.type);
+                flag_error(parser, op.position, message);
+            }
         }
         case 2; {
-            rhs := stack_pop(*operands);
-            lhs := stack_pop(*operands);
-            node = new_binary_operator_node(node_id, lhs, op.type, rhs);
+            if stack_count(operands) >= 2 {
+                rhs := stack_pop(*operands);
+                lhs := stack_pop(*operands);
+                node = new_binary_operator_node(node_id, lhs, op.type, rhs);
+            }
+            else
+            if stack_count(operands) == 1 {
+                message := tprint("Binary operator '%' found but no right-hand argument specified.", op.type);
+                flag_error(parser, op.position, message);
+            }
+            else
+            if stack_count(operands) == 0 {
+                message := tprint("Binary operator '%' found but no arguments are specified.", op.type);
+                flag_error(parser, op.position, message);
+            }
         }
         case; {
             message := tprint("Unable to construct operator node. Unknown arity for operator '%'.", op.type);
@@ -314,9 +335,7 @@ apply_operators_until_group_start :: (parser: *Parser, closing_paren: Operator) 
         stack_push(*operands, operand);
     }
 
-    // Failed to find the matching opening paren if we ended up here!
     flag_error(parser, closing_paren.position, "Unmatched closing parentheses found in expression.");
-
     return;
 }
 
@@ -366,9 +385,6 @@ apply_remaining_operators :: (parser: *Parser) -> *Ast_Node {
             break;
         }
 
-        // TODO: Robustness here!
-        // "e1-" this will be parsed as the infix operator subtraction but missing the rhs operand.
-        // We'd need to check the arity to make sure it requires two arguments then report that it is missing the rhs.
         operand := apply_operator(parser, op);
         stack_push(*operands, operand);
     }
