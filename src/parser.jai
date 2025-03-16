@@ -12,16 +12,11 @@
     between two basis elements (which is not defined), assigning an expression to a scalar symbol, or making a function
     call with an unrecognized intrinsic, undefined symbols (using a symbol prior to it's definition), etc..
 
-    --Expected unary operator or operand. Found binary operator X, "++"
-    --Missing left parantheses "(3 + 4))"
-    --Missing argument in binary expression would be "e1-"
-    --Missing argument in binary expression e1|)
-    --Missing argument in binary expression e1|&
-    --Unmatched closing paranthesis found in expression ((3 + 4
-    --Unmatched closing paranthesis found in expression ((3 + 4)
-    --Unmatched open paranthesis found in expression (3 +(4))
-    --Missing argument in binary expression 'Addition'.e1|e2 + e1|e2 +
-
+    --Expected unary operator or operand:                 "e1 &|" or "++" or "e1 | )" or "e1 &"
+    --Missing argument in binary expression:              "e1 -" or "e1 |" or "e1 +" or "e1|e2 &"
+    --Unmatched open paranthesis found in expression      "((3 + 4" or "((3 + 4)"
+    --Unmatched closing paranthesis found in expression:  "(3 +(4))"
+    --Missing argument in binary expression:              "e1 + e2 + e3 +"
 */
 
 #scope_export
