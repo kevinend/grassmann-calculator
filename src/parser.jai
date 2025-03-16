@@ -19,6 +19,7 @@
     --Missing argument in binary expression e1|&
     --Unmatched closing paranthesis found in expression ((3 + 4
     --Unmatched closing paranthesis found in expression ((3 + 4)
+    --Unmatched open paranthesis found in expression (3 +(4))
     --Missing argument in binary expression 'Addition'.e1|e2 + e1|e2 +
 
 */
