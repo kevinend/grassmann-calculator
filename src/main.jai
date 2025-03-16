@@ -89,7 +89,7 @@ main :: () {
 			continue;
 		}
 
-        success, ast = parse(*parser, tokens);
+        success, ast = parse(*parser, tokens, input);
         if !success {
             error := get_parser_error(*parser);
             print(error);

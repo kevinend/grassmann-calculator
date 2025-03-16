@@ -31,14 +31,17 @@ Parser :: struct {
 
     error_detected: bool;
     error_message:  string;
+
+    // user-input used for error reporting.
+    input: string;
 }
 
 
-parse :: (parser: *Parser, tokens: [] Token) -> bool #must, Ast {
+parse :: (parser: *Parser, tokens: [] Token, input: string) -> bool #must, Ast {
 
     ast: Ast;
     success: bool;
-    reset_parser(parser, tokens);
+    reset_parser(parser, tokens, input);
 
     parser_context := context;
     parser_context.allocator = temp;
@@ -121,7 +124,7 @@ Mode :: enum u8 {
     Infix_or_Postfix;
 }
 
-reset_parser :: (parser: *Parser, tokens: [] Token) {
+reset_parser :: (parser: *Parser, tokens: [] Token, input: string) {
 
     parser.tokens = tokens;
     parser.current_token = 0;
@@ -135,6 +138,7 @@ reset_parser :: (parser: *Parser, tokens: [] Token) {
     array_reset(*parser.position_metadata);
 
     parser.error_detected = false;
+    parser.input          = input;
 }
 
 flag_error :: (parser: *Parser, position: Position_Info, message: string) {
@@ -142,14 +146,22 @@ flag_error :: (parser: *Parser, position: Position_Info, message: string) {
     line_number := position.line_number;
 	char_start  := position.char_start;
 
-	base := tprint("Parse Error! Line:%, Char:% -- ", line_number, char_start);
+	base := tprint("\nParse Error! Line:%, Char:% -- ", line_number, char_start);
 
 	builder: String_Builder;
 	builder.allocator = temp;
 
 	append(*builder, base);
 	append(*builder, message);
+    append(*builder, "\n\n");
+
+    append(*builder, parser.input);
     append(*builder, "\n");
+    for i: 0..char_start-1 {
+        append(*builder, "~");
+    }
+    append(*builder, "^");
+    append(*builder, "\n\n");
 
 	parser.error_detected = true;
 	parser.error_message  = builder_to_string(*builder);
@@ -164,15 +176,21 @@ parse_expression :: (parser: *Parser) -> bool, Ast {
         if token.type == .Semicolon || parser.error_detected { break; }
 
         if parser.mode == .Prefix {
-            op := attempt_to_convert_token_to_prefix_operator(token);
-            if is_operator(op) {
-                stack_push(*operators, op);
+            prefix_op := attempt_to_convert_token_to_prefix_operator(token);
+            if is_operator(prefix_op) {
+                stack_push(*operators, prefix_op);
+                continue;
             }
-            else {
-                operand := new_operand(parser, token);
-                stack_push(*operands, operand);
-                parser.mode = .Infix_or_Postfix;
+
+            nonprefix_op := attempt_to_convert_token_to_infix_or_postfix_operator(token);
+            if is_operator(nonprefix_op) {
+                flag_error(parser, nonprefix_op.position, "Expected unary operator or argument.");
+                continue;
             }
+
+            operand := new_operand(parser, token);
+            stack_push(*operands, operand);
+            parser.mode = .Infix_or_Postfix;
         }
         else
         if parser.mode == .Infix_or_Postfix {
@@ -200,6 +218,19 @@ parse_expression :: (parser: *Parser) -> bool, Ast {
             }
         }
     }
+
+    // Valid:
+    // e1 + e2 + e3
+    // e1 e2 e3
+    // + + Ends in Infix_or_Postfix
+
+    // Invalid:
+    // e1 + e2 +
+    // e1 e2
+    // +   + Prefix
+    // Binary operator and parser mode is prefix position
+
+    // if the parser ends in infix or prefix mode and the operator isn't a postfix operator, and the arity is two
 
     ast: Ast;
     ast.root = apply_remaining_operators(parser);
@@ -256,7 +287,7 @@ new_operand :: (parser: *Parser, token: Token) -> *Ast_Node {
     }
 
     node_id += 1;
-    
+
     return node;
 }
 
@@ -269,7 +300,12 @@ apply_operator :: (parser: *Parser, op: Operator) -> *Ast_Node {
     node: *Ast_Node = null;
     array_add(*position_metadata, op.position);
 
-    if get_operator_arity(op) == {
+    if parser.error_detected {
+        return node;
+    }
+
+    arity := get_operator_arity(op);
+    if arity == {
         case 1; {
             if stack_count(operands) >= 1 {
                 rhs := stack_pop(*operands);
@@ -280,15 +316,15 @@ apply_operator :: (parser: *Parser, op: Operator) -> *Ast_Node {
                 flag_error(parser, op.position, message);
             }
         }
-        case 2; {
-            if stack_count(operands) >= 2 {
+        case 2; {         
+            if stack_count(operands) >= 2 && parser.mode == .Infix_or_Postfix {
                 rhs := stack_pop(*operands);
                 lhs := stack_pop(*operands);
                 node = new_binary_operator_node(node_id, lhs, op.type, rhs);
             }
             else
-            if stack_count(operands) == 1 {
-                message := tprint("Binary operator '%' found but no right-hand argument specified.", op.type);
+            if stack_count(operands) == 1 || parser.mode == .Prefix {
+                message := tprint("Missing argument in binary expression '%'.", op.type);
                 flag_error(parser, op.position, message);
             }
             else
@@ -314,6 +350,10 @@ apply_operators_until_group_start :: (parser: *Parser, closing_paren: Operator) 
     // If we reach the end of the stack before finding a match then the expression has an unmatched open parenthesis.
 
     using parser;
+
+    if parser.error_detected {
+        return;
+    }
 
     while !stack_is_empty(operators) {
         op := stack_pop(*operators);
@@ -343,6 +383,10 @@ apply_operators_with_greater_precedence_then_push :: (parser: *Parser, op: Opera
 
     // Build new operand nodes using the operator at the head of the stack while it has a higher precedence than the currently parsed operator.
     using parser;
+
+    if parser.error_detected {
+        return;
+    }
 
     op_precedence := get_operator_precedence(op);
     while !stack_is_empty(operators) {
@@ -378,6 +422,7 @@ apply_remaining_operators :: (parser: *Parser) -> *Ast_Node {
     // Apply the remaining operators left on the stack returning the AST as the last operand node on successful parse.
     using parser;
 
+
     while !stack_is_empty(operators) {
         op := stack_pop(*operators);
         if op.type == .Group_Start || op.type == .Function_Call {
@@ -389,5 +434,10 @@ apply_remaining_operators :: (parser: *Parser) -> *Ast_Node {
         stack_push(*operands, operand);
     }
 
-    return stack_pop(*operands);
+    if !parser.error_detected {
+        return stack_pop(*operands);
+    }
+    else {
+        return null;
+    }
 }
