@@ -101,7 +101,7 @@ main :: () {
         resolve_symbols(*ast, *space);
         descend(ast.root);
 
-        pass := semantic_check(*ast);
+        pass := check_semantics(*ast);
         if !pass {
             continue;
         }

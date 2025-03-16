@@ -1,11 +1,15 @@
 /*
     This file implements a semantic pass over the AST.
     Checks the AST to make sure what the user input makes sense with respect to the algebra.
+
+    Baseline checks:
+    1. Variables are the only targets for assignment.
+    2. Scalar_Multiplication can only occur only if one argument is a scalar (grade-0).
 */
 
 #scope_export
 
-semantic_check :: (ast: *Ast) -> bool {
+check_semantics :: (ast: *Ast) -> bool {
 
     // check
     // report

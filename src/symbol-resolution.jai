@@ -63,7 +63,7 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
 
             if parent && parent.kind == .Binary_Operator {
                 binary_op := cast(*Binary_Operator_Node)parent;
-                if binary_op.op == .Assignment {
+                if binary_op.op == .Assignment && binary_op.lhs == node {
                     var := new_variable_node(ident.node_id, ident.name);
                     result = var;
 
