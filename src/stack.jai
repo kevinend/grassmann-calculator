@@ -67,13 +67,20 @@ stack_peek :: (stack: Stack($T)) -> T {
     // Returns the head of the stack. The caller should ensure the stack is not empty before calling.
     assert(stack.count != 0);
     return stack.head.value;
-    
 }
 
 stack_count :: (stack: Stack($T)) -> int {
     
     // Return the number of elements currently in the Stack.
     return stack.count;
+}
+
+stack_reset :: (stack: *Stack($T)) {
+
+    // For stacks that are used with the temporary allocator allow you to 'reset' the stack by setting it's count to zero and head to null.
+    stack.head = null;
+    stack.count = 0;
+    return;
 }
 
 stack_deallocate :: (stack: *Stack($T)) {

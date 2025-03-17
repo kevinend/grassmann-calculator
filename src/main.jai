@@ -41,10 +41,13 @@ main :: () {
     success: bool = false;
     quit: bool    = false;
 
-    lexer:       Lexer;
-    parser:      Parser;
+    lexer:  Lexer;
+    tokens: [] Token;
 
-    default_dimension:  int       = 4;
+    parser: Parser;
+    ast:    Ast;
+
+    default_dimension: int = 4;
     default_1_elements: [] string = .["e0","e1","e2","e3"];
     default_scalar_variable_prefix_characters: string = "abcdnpqrsuvABCKLMNPQRS";
     
@@ -59,6 +62,8 @@ main :: () {
 
 	input: string;
 	while !quit {
+
+        reset_temporary_storage();
         
 		print( "%", USER_PROMPT );
 		success, input = read_line();
@@ -77,19 +82,30 @@ main :: () {
             continue;
         }
 
-        tokens := generate_tokens(*lexer, input);
-        if lexer.error_reported {
-			print(lexer.error_message);
+        success, tokens = generate_tokens(*lexer, input);
+        if !success {
+            error := get_lexer_error(*lexer);
+			print(error);
 			continue;
 		}
 
-        ast := parse(*parser, tokens);
-        descend(ast.root);
+        success, ast = parse(*parser, tokens, input);
+        if !success {
+            error := get_parser_error(*parser);
+            print(error);
+            continue;
+        }
+
+    //    descend(ast.root);
 
         resolve_symbols(*ast, *space);
         descend(ast.root);
 
-        reset_temporary_storage();
+        pass := check_semantics(*ast);
+        if !pass {
+            continue;
+        }
+        
     }
 		
 }
