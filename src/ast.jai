@@ -169,14 +169,18 @@ copy_node :: (node: *Ast_Node) -> *Ast_Node {
 
 	dst: *Ast_Node = null;
 	if node.kind == .Element {
-		src := cast(*Element_Node)node;
-		dst = new_element_node(src.node_id, copy_term(src.coefficient), src.basis);
+		src         := cast(*Element_Node)node;
+        coefficient := copy_term(src.coefficient);
+        basis       := src.basis;
+
+		dst = new_element_node(src.node_id, coefficient, basis);
 	}
 	else
 	if node.kind == .Unary_Operator {
-		src     := cast(*Unary_Operator_Node)node;
-        operand := copy_node(src.rhs);
-		dst      = new_unary_operator_node(src.node_id, src.op, operand);
+		src := cast(*Unary_Operator_Node)node;
+        rhs := copy_node(src.rhs);
+
+		dst  = new_unary_operator_node(src.node_id, src.op, rhs);
 	}
 	else
 	if node.kind == .Binary_Operator {
