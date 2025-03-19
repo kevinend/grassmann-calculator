@@ -102,7 +102,7 @@ main :: () {
     //    descend(ast.root);
 
         resolve_symbols(*ast, *space);
-        descend(ast.root);
+  //      descend(ast.root);
 
         pass := check_semantics(*ast);
         if !pass {
@@ -113,10 +113,6 @@ main :: () {
         // Cloning the nodes wastes memory but we are using the linear allocator so new nodes will be located near one another
         // so maybe not a huge problem? 03.18.2025
 
-
-        // base_ast
-        // expanded_ast   --> this version
-        // simplified_ast --> this version
         expanded_ast = expand(ast);
         descend(expanded_ast.root);
         

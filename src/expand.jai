@@ -1,8 +1,55 @@
 /*
-    This file expands/distributes Grassmmann products over sums.
-    Example: e1 ^ (e2 + e3) == e1^e2 + e1^e3
-    
-    The new expressions are evaluated in then 'simplify' pass over the AST.
+    This file expands/distributes Grassmmann products over sums and differences.
+    The new expression tree (AST) is evaluated in the 'simplify pass over the AST.
+
+    This step is not conceptually hard but the code is a little terse so here is a visual example
+    so I can remember how I did this.
+
+    --------------------------------------------------------------------------------------
+    Example: Simple expansion    
+    e0 ^ (e1 + e2)
+
+    Initial tree:
+                        ^
+                    e0     +
+                        e1   e2
+
+    New LHS and RHS Nodes:
+        LHS:  ^       RHS:   ^
+            e0 e1          e0 e2
+
+    New subtree with new LHS and RHS:
+                 +
+              ^     ^
+            e0 e1 e0 e2
+    --------------------------------------------------------------------------------------
+    Example: Recursive expansion 
+    (e0 + e1) ^ (e2 + e3)
+
+    Initial tree:           ^
+                        +        +
+                    e0   e1  e2  e3
+
+    New LHS and RHS:
+        LHS      ^          RHS  ^
+              e0    +          e1  +
+                 e2   e3          e2 e3
+
+    New subtree with new LHS and RHS (without the recursive expansion/distribution):
+                        +
+                    ^       ^
+                e0    +   e1   +
+                    e2 e3    e2 e3
+
+
+    Need to invoke' distribute' on the new LHS and RHS so they also get distributed over the sum/difference.
+
+    Fully distributed/expanded subtree:
+                            +
+                    +                  +
+                ^       ^         ^         ^
+            e0   e2  e0   e3   e1  e2    e1  e3
+    --------------------------------------------------------------------------------------
 */
 
 #scope_export
@@ -19,12 +66,7 @@ expand :: (ast: Ast) -> Ast {
 
 distribute :: (node: *Ast_Node) -> *Ast_Node {
 
-    // Distribute the grassmann products over the arithmetic product (sum)
-	// 
-	// This procedure generates a whole new expression tree based on the initial expression tree
-	// supplied by the caller. Ideally, we can update the tree in place, which is totally do-able
-	// but until I have an initial implmentation up and working I think it is best to have
-	// the 'expansion' or 'simplification' stages work on their own trees to ease debugging.
+    // Distribute the grassmann products over the arithmetic sum or difference.
 
     subtree: *Ast_Node;
     if node.kind == .Binary_Operator {
@@ -40,31 +82,19 @@ distribute :: (node: *Ast_Node) -> *Ast_Node {
 
             // check if the Grassmann products are over sums or differences.
             if lhs.kind == .Binary_Operator && (lhs.op == .Addition || lhs.op == .Subtraction) {
+
                 /*
-                    Distribute the lhs over the rhs
-                    Example - Simple expansion:    (e1 + e2) ^ e3
-                    Example - Recursive expansion: (e1 + e2) ^ (e3 + e4)
+                        ^
+                    +      e3
+                e0   e1
 
-                    Initial tree:           ^
-                                       +        +
-                                    e1   e2  e3  e4
-                
-                    New LHS and RHS:
-                        LHS      ^          RHS  ^
-                              e1  +            e2  +
-                                e3 e4            e3 e4
-                
-                
-                    Need to invoked distribute on the new LHS and RHS so they also get distributed.
+                       +
+                    ^    ^
+                e0  e3  e1 e3
 
-                    Expanded subtree:
-                                            +
-                                    +                  +
-                                ^       ^         ^         ^
-                            e1   e3  e1   e4    e2  e3    e2  e4
                 */
-                         
-                new_lhs := new_binary_operator_node(
+
+                 new_lhs := new_binary_operator_node(
                      grassmann_op.node_id
                     ,copy_node(lhs.lhs)
                     ,grassmann_op.op
@@ -78,7 +108,11 @@ distribute :: (node: *Ast_Node) -> *Ast_Node {
                     ,copy_node(grassmann_op.rhs)
                 );
 
-                // to fully expand the subtrees, need to recursively call this procedure again
+                // This procedure can generate another Grassmann product over a sum.
+                // To fully expand the subtrees (and distribute appropriately) need to recursively
+                // call this procedure on the new children of the new binary operator.
+                // Example (e0+e1)^(e2+e3) will expand to e0|(e2+e3) + e1|(e2+e3) in this invocation
+                // which needs expanded again, hence the recursive call.
                 subtree = new_binary_operator_node(
                      lhs.node_id
                     ,distribute(new_lhs)
@@ -88,10 +122,10 @@ distribute :: (node: *Ast_Node) -> *Ast_Node {
             }
             else
             if rhs.kind == .Binary_Operator && (rhs.op == .Addition || rhs.op == .Subtraction) {
-                // Distribute the rhs over the lhs
+                // Distribute the lhs over the rhs
                 // See above comment since this is the same thing but from the other branch of the tree.
-                
-                 new_lhs := new_binary_operator_node(
+
+                new_lhs := new_binary_operator_node(
                      grassmann_op.node_id
                     ,copy_node(grassmann_op.lhs)
                     ,grassmann_op.op
@@ -105,13 +139,18 @@ distribute :: (node: *Ast_Node) -> *Ast_Node {
                     ,copy_node(rhs.rhs)
                 );
 
-                // to fully expand the subtrees, need to recursively call this procedure again
+                // This procedure can generate another Grassmann product over a sum.
+                // To fully expand the subtrees (and distribute appropriately) need to recursively
+                // call this procedure on the new children of the new binary operator.
+                // Example (e0+e1)^(e2+e3) will expand to e0|(e2+e3) + e1|(e2+e3) in this invocation
+                // which needs expanded again, hence the recursive call.
                 subtree = new_binary_operator_node(
                      rhs.node_id
                     ,distribute(new_lhs)
                     ,rhs.op
                     ,distribute(new_rhs)
                 );
+                
             }
             else {
                 subtree = copy_node(grassmann_op);
