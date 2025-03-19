@@ -161,6 +161,34 @@ new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> (term:
     return term;
 }
 
+
+copy_term :: (term: *Term) -> *Term {
+
+    assert(term != null);
+
+    src: *Term = term;
+    dst: *Term = talloc(size_of(Term));
+    assert(dst != null);
+
+    memcpy(dst, src, size_of(Term));
+    if src.num_factors > 0 {
+        dst.factors.data  = talloc(dst.factors.count * size_of(Factor));
+        dst.factors.count = src.factors.count;
+        assert(dst.factors.data != null);
+
+        memcpy(dst.factors.data, src.factors.data, src.num_factors);
+    }
+
+    src = src.next;
+    while src != null {
+        dst.next = copy_term(src);
+        dst = dst.next;
+        src = src.next;
+    }
+
+    return dst;
+}
+
 operator == :: (lterm: Term, rterm: Term) -> bool {
     
 	// Terms are equal when the following conditions are true.
