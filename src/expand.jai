@@ -83,17 +83,6 @@ distribute :: (node: *Ast_Node) -> *Ast_Node {
             // check if the Grassmann products are over sums or differences.
             if lhs.kind == .Binary_Operator && (lhs.op == .Addition || lhs.op == .Subtraction) {
 
-                /*
-                        ^
-                    +      e3
-                e0   e1
-
-                       +
-                    ^    ^
-                e0  e3  e1 e3
-
-                */
-
                  new_lhs := new_binary_operator_node(
                      grassmann_op.node_id
                     ,copy_node(lhs.lhs)
