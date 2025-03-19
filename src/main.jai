@@ -45,7 +45,10 @@ main :: () {
     tokens: [] Token;
 
     parser: Parser;
-    ast:    Ast;
+
+    ast:            Ast;
+    expanded_ast:   Ast;
+    simplified_ast: Ast;
 
     default_dimension: int = 4;
     default_1_elements: [] string = .["e0","e1","e2","e3"];
@@ -99,15 +102,21 @@ main :: () {
     //    descend(ast.root);
 
         resolve_symbols(*ast, *space);
-        descend(ast.root);
+  //      descend(ast.root);
 
         pass := check_semantics(*ast);
         if !pass {
             continue;
         }
+
+        // Expand and simplify return new instances of the entire syntax tree.
+        // Cloning the nodes wastes memory but we are using the linear allocator so new nodes will be located near one another
+        // so maybe not a huge problem? 03.18.2025
+
+        expanded_ast = expand(ast);
+        descend(expanded_ast.root);
         
     }
-		
 }
 
 #scope_file

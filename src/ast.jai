@@ -3,7 +3,7 @@
 #scope_export
 
 Node_Kind :: enum u32 {
-    
+
     /*
         Operators are rolled-up/categorized into either a unary or binary operator node.
         This reduces the overall number of AST node types but introduces additional computational
@@ -163,4 +163,36 @@ new_intrinsic_node :: (node_id: u16, type: Intrinsic_Type) -> *Ast_Node {
     node.type    = type;
 
     return node;
+}
+
+copy_node :: (node: *Ast_Node) -> *Ast_Node {
+
+	dst: *Ast_Node = null;
+	if node.kind == .Element {
+		src         := cast(*Element_Node)node;
+        coefficient := copy_term(src.coefficient);
+        basis       := src.basis;
+
+		dst = new_element_node(src.node_id, coefficient, basis);
+	}
+	else
+	if node.kind == .Unary_Operator {
+		src := cast(*Unary_Operator_Node)node;
+        rhs := copy_node(src.rhs);
+
+		dst  = new_unary_operator_node(src.node_id, src.op, rhs);
+	}
+	else
+	if node.kind == .Binary_Operator {
+		src := cast(*Binary_Operator_Node)node;
+		lhs := copy_node(src.lhs);
+        rhs := copy_node(src.rhs);
+
+		dst = new_binary_operator_node(src.node_id, lhs, src.op, rhs);
+	}
+	else {
+		print( "Unrecognized node kind found when cloning nodes\n" );
+	}
+
+	return dst;
 }
