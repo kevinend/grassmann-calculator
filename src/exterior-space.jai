@@ -172,7 +172,7 @@ copy_term :: (term: *Term) -> *Term {
 
     memcpy(dst, src, size_of(Term));
     if src.num_factors > 0 {
-        dst.factors.data  = talloc(dst.factors.count * size_of(Factor));
+        dst.factors.data  = talloc(src.factors.count * size_of(Factor));
         dst.factors.count = src.factors.count;
         assert(dst.factors.data != null);
 
