@@ -161,7 +161,6 @@ new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> (term:
     return term;
 }
 
-
 copy_term :: (term: *Term) -> *Term {
 
     assert(term != null);
@@ -187,6 +186,17 @@ copy_term :: (term: *Term) -> *Term {
     }
 
     return dst;
+}
+
+scale_term :: (term: *Term, s: float) {
+
+    c := term;
+    while c {
+        c.multiples *= s;
+        c = c.next;
+    }
+
+    return;
 }
 
 operator == :: (lterm: Term, rterm: Term) -> bool {

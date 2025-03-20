@@ -115,6 +115,19 @@ main :: () {
 
         expanded_ast = expand(ast);
         descend(expanded_ast.root);
+
+        simplified_ast = simplify(expanded_ast);
+        descend(simplified_ast.root);
+
+        // is_assignment()
+        //  update_symbol_table
+
+        // Simplification happens in several steps:
+        // original:        e1 ^ (e1 + e2) + e1^e2
+		// distribute:      e1^e1 + e1^e2 + e1^e2
+		// eval:              0   + e1^e2 + e1^e2
+		// flatten/collect:   0   + (2)e1^e2
+        // display or update symbol
         
     }
 }
