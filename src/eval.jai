@@ -89,7 +89,7 @@ eval :: (node: *Ast_Node) -> *Ast_Node {
 
 }
 
-negate :: (element: *Element_Node) -> *Ast_Node {
+negate :: (element: *Element_Node) -> *Element_Node {
 
     assert(element != null);
     
@@ -98,7 +98,7 @@ negate :: (element: *Element_Node) -> *Ast_Node {
     return result;
 }
 
-complement :: (type: Complement_Type, k: *Element_Node) -> *Ast_Node {
+complement :: (type: Complement_Type, k: *Element_Node) -> *Element_Node {
 
     // Generates an (n-k)-element from the input k-element.
 
@@ -106,24 +106,67 @@ complement :: (type: Complement_Type, k: *Element_Node) -> *Ast_Node {
     basis       := get_basis_element(bits);
     coefficient := k.coefficient;
 
-    node := new_element_node(k.node_id, coefficient, basis);
+    n_k := new_element_node(k.node_id, coefficient, basis);
 
     anticommute: bool = false;
     if type == .Left {
-        anticommute = does_product_anticommute(bits, k.basis.bits);
+        anticommute = does_product_anticommute(n_k.basis.bits, k.basis.bits);
     }
     else
     if type == .Right {
-        anticommute = does_product_anticommute(k.basis.bits, bits);
+        anticommute = does_product_anticommute(k.basis.bits, n_k.basis.bits);
     }
 
     if anticommute == true {
-        // scale the coefficient!
+        scale_term(n_k.coefficient, -1);
     }
 
-    return node;
+    return n_k;
 }
 
 does_product_anticommute :: (lhs: int, rhs: int) -> bool {
-    return true;
+
+    // Steps:
+    //  Start at the right-most bit of the LHS (check diagram in header comment at start of the file if this doesn't make sense!)
+    //  Iterate through each bit in the LHS.
+    //   If the bit is set in the LHS then find it's corresponding location (bit) in the RHS.
+    //   Once we reach the location in the RHS set the bit.
+    //   During the move, if you cross over a 'set' bit in the RHS then you have swapped elements.
+    //
+    // If at the end you've swapped an odd number of times then the product anticommutes.
+
+    temp := rhs;
+    swaps: int = 0;
+
+    for #v2 < i: 0..space.dimension-1 {
+        if bit_is_set(lhs, i) {
+            for j: 0..space.dimension-1 {
+                if i == j {
+                    set_bit(*temp, j);
+                    break;
+                }
+                else
+                if bit_is_set(temp, j) {
+                    swaps += 1;
+                }
+            }
+        }
+    }
+
+    return (swaps % 2 != 0);
+}
+
+// Utility functions for Grassmann products that operate on individual bits.
+// MSB and LSB stand for most/least significant bit (not byte)!
+
+bit_is_set :: inline (bitset: int, bit: int) -> bool {
+    return (bitset & (1 << bit)) != 0;
+}
+
+set_bit :: inline (bitset: *int, bit: int) {
+    bitset.* |= (1 << bit);
+}
+
+unset_set :: inline (bitset: *int, bit: int) {
+    bitset.* ^= (1 << bit);
 }

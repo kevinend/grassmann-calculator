@@ -3,6 +3,16 @@
 main :: () {
 
     {
+        numbers: [..] int;  // An empty array that can automatically expand.
+
+        for 1..5 array_add(*numbers, it*it);
+
+        for < number: numbers  print("'number'  backwards: %\n", number);
+    }
+
+    for  #v2 < 1..5 print ("hello");
+
+    {
         prefix_characters: string = "abcdnpqrsuvABCKLMNPQRS";
         symbol := "p";
         for c: prefix_characters {
@@ -11,16 +21,7 @@ main :: () {
                 break;
             }
         }
-
-       
-        builder: String_Builder;
-        for i: 0..25 {
-            append(*builder, #char "a" + i);
-            append(*builder, i);
-            s := builder_to_string(*builder);
-            x := encode(#char "a" + i);
-
-        }
+/*
 
         x := encode("a1");
         y := encode("a01");
@@ -33,7 +34,7 @@ main :: () {
         print("Encoded x=%, y=%, z=%, w=%, t1=%, t2=%\n", x,y,z,w,t1,t2);
         print("Decoded x=%, y=%, z=%, w=%, t1=%, t2=%\n", decode(x), decode(y), decode(z), decode(w), decode(t1), decode(t2));
     
-
+*/
         // 4 bytes (32-bit)
         // char numindices 0 1
         // char 1 1
