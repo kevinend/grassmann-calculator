@@ -98,7 +98,7 @@ descend :: (node: *Ast_Node, indent: int = 0) {
         print(
 			"(%) Element (Coefficient=%, Grade=%, Symbol=%, Bits=%)\n"
             ,element.node_id
-            ,coefficient_to_string(element.coefficient)
+            ,term_to_string(element.coefficient)
             ,element.basis.grade
             ,element.basis.symbol
             ,element.basis.bitset

@@ -45,22 +45,6 @@ Basis_Element :: struct {
     symbol: string;
 }
 
-Factor :: struct {
-    exponent: s16;
-    scalar_variable: u16;
-}
-
-Term :: struct {
-    // Represents a single number or a list of scalar-variable factors to represent terms such as "a1" or a product like "a1b2c3"
-    // This is like a tagged union without the tag. A number is implicit and occurs when the count of factors is zero.
-
-    value: float;
-    #place value; multiples: float;
-
-    factors: [] Factor;
-    next: *Term;
-}
-
 M_Element :: struct {
     // An M-element represents a multi-element. An element that *can* be of mixed grade.
     grade: int      = -1;
@@ -130,207 +114,7 @@ get_basis_element :: (bits: int) -> *Basis_Element {
     return basis_element;
 }
 
-new_term :: (value: float) -> (term: *Term) {
 
-    term: *Term = talloc(size_of(Term));
-    assert(term != null);
-    memset(term, 0, size_of(Term));
-
-    term.value = value;
-    return term;
-}
-
-new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> (term: *Term) {
-
-    term := cast(*Term)talloc(size_of(Term));
-    assert(term != null);
-    memset(term, 0, size_of(Term));
-
-    term.factors.data  = talloc(size_of(Factor));
-    term.factors.count = 1;
-    assert(term.factors.data != null);
-
-    term.factors[0].exponent        = exponent;
-    term.factors[0].scalar_variable = encode(scalar_variable);
-
-    term.multiples = multiples;
-    term.factors.count = 1;
-
-    return term;
-}
-
-copy_term :: (term: *Term) -> *Term {
-
-    // Copy of a single term.
-
-    assert(term != null);
-
-    src: *Term = term;
-    dst: *Term = talloc(size_of(Term));
-    assert(dst != null);
-
-    memcpy(dst, src, size_of(Term));
-    if src.factors.count > 0 {
-        dst.factors.data  = talloc(src.factors.count * size_of(Factor));
-        dst.factors.count = src.factors.count;
-        assert(dst.factors.data != null);
-
-        memcpy(dst.factors.data, src.factors.data, src.factors.count * size_of(Factor));
-    }
-
-    return dst;
-}
-
-copy_terms :: (term: *Term) -> *Term {
-
-    // Deep copy of the entire list of terms.
-    assert(term != null);
-
-    head := copy_term(term);
-    
-    src := term.next;
-    dst := head;
-    while src != null {
-        dst.next = copy_term(src);
-        dst = dst.next;
-        src = src.next;
-    }
-
-    return head;
-}
-
-scale_term :: (term: *Term, s: float) {
-
-    c := term;
-    while c {
-        c.multiples *= s;
-        c = c.next;
-    }
-
-    return;
-}
-
-operator == :: (lterm: Term, rterm: Term) -> bool {
-    
-	// Terms are equal when the following conditions are true.
-	//  1. Each term contains the same number of factors (even if the count is zero).
-	//  2. Each term contains the same factors in the same order.
-	//  3. Each factor in the term is raised to the same power.
-	if lterm.factors.count == rterm.factors.count {
-		count := lterm.factors.count;
-
-		return memcmp(lterm.factors.data, rterm.factors.data, size_of(Factor) * count) == 0;
-	}
-	else {
-		return false;
-	}
-}
-
-combine_factors :: (lhs: [] Factor, rhs: [] Factor) -> [] Factor {
-
-    // Create a new combined list of sorted factors.
-    // This is kind of like a sorted zip of the two lists.
-
-    L := 0;
-    R := 0;
-
-    factor: Factor;
-    factors: [..] Factor;
-
-    while true {
-        if L == lhs.count { // no more factors in the left factor list; add the rest of the right
-            while R < rhs.count {
-                array_add(*factors, rhs[R]);
-                R += 1;
-            }
-            break;
-        }
-
-        if R == rhs.count { // no more factors in the right factor list; add the rest of the left
-            while L < lhs.count {
-                array_add(*factors, lhs[L]);
-                L += 1;
-            }
-            break;
-        }
-
-        if lhs[L].scalar_variable == rhs[R].scalar_variable {
-            factor           = lhs[L];
-            factor.exponent *= rhs[R].exponent;
-
-            array_add(*factors, factor);
-            L += 1;
-            R += 1;
-        }
-        else
-        if lhs[L].scalar_variable < rhs[R].scalar_variable {
-            array_add(*factors, lhs[L]);
-            L += 1;
-        }
-        else {
-            array_add(*factors, rhs[R]);
-            R += 1;
-        }
-    }
-
-    return factors;
-}
-
-multiply_term :: (lhs: *Term, rhs: *Term) -> *Term {
-
-    // Multiply single terms together.
-
-    result: *Term = null;
-    if lhs.factors.count == 0 { // pure number
-        result = copy_term(rhs);
-        result.multiples *= lhs.value;
-    }
-    else
-    if rhs.factors.count == 0 { // pure number
-        result = copy_term(lhs);
-        result.multiples *= rhs.value;
-    }
-    else {
-        result = new_term(lhs.multiples * rhs.multiples);
-        result.factors = combine_factors(lhs.factors, rhs.factors);
-    }
-
-    assert(result != null);
-    return result;
-}
-
-multiply_terms :: (lhs: *Term, rhs: *Term) -> *Term {
-
-    /*
-        Distribute scalar (and scalar variables).
-        Cases:
-        (1) LHS and RHS have an equal number of terms/coefficients:
-            (a1)e1 ^ (b1)e2
-        (2) LHS has more terms than RHS:
-           (a1+a2)e1 ^ (b1)e2
-        (3) Rhs has more terms than LHS:
-           (a1)e1 ^ (b1+b2)e2
-
-        Each element always has at *least* one term.
-    */
-
-    head: Term;   // Kinda hacky but make the loop work without a bunch of conditionals.
-    Lterm := lhs;
-    Rterm := rhs;
-
-    current := *head;
-    while Lterm != null {
-        Rterm := rhs;
-        while Rterm != null {
-            current.next = multiply_term(Lterm, Rterm);
-            current = current.next;
-            Rterm = Rterm.next;
-        }
-        Lterm = Lterm.next;
-    }
-
-    return head.next;
-}
 
 
 /* 
@@ -396,64 +180,82 @@ valid_scalar_variable :: (ident: string) -> bool {
     return ident.count <= 3;
 }
 
-coefficient_to_string :: (term: *Term) -> string {
+/*
 
-    builder: String_Builder;
+Encode and decode scalar variables into u16's so that we don't have to store the text string to represent the variable.
+This allows 4 bytes to be used (the encoding + exponent) to represent any *valid* scalar variable.
+When a term contains a product (list) of scalar-variables this keeps the size of that product relatively small.
+Also allows factors to be ordered based on the u16 key which makes memcmp an available option to compare terms easily
+vs iterating over terms then iterating over liss of factors.
 
-    while term.next != null {
-        if term.factors.count == 0 {
-            value := tprint("%", term.value);
-            append(*builder, value);
-        }
-        else {
-            // scalar variable or product of scalar variables
-            if term.multiples != 1 {
-                multiples := tprint("%", term.multiples);
-                append(*builder, multiples);
-            }
+An alternative approach is to intern the scalar variable strings. Then to compare two factors you just compare the pointers.
+Since we have to store the exponent alongside the pointer this makes the size of each factor grow to 16-bytes and we can't
+sort by pointer so the check would be an iteration over each list of factors.
 
-            for i: 0..term.factors.count-1 {
-                factor := term.factors[i];
-                scalar_variable := decode(factor.scalar_variable);
-                append(*builder, scalar_variable);
+A third approach would be to maintain two parallel lists for scalar variables. A list of hashes and a list of symbols.
+When you encounter a scalar-variable you hash it (using some stupid simple hash that does powers of ten on place-value or something)
+then iterate through your list and look for that hash. If you find it then you return the index otherwise you append the list
+with the new hash and symbol and store the index in the Factor. If you allow fewer than 65535 scalar-variables the index could
+fit in a u16 and be used in the same manner as our current encode/decode scheme. The drawback to this approach is if the application
+is long-running a lot of scalar-variables could exist in the parallel lists and those checks just take longer and longer to execute.
+Could do an ordered insert of the hashes and symbols then binary search on lookup but that complicates the insert to ease the calc and lookup....
 
-                if factor.exponent > 1 {
-                    exponent := tprint("%", factor.exponent);
-                    append(*builder,"^");
-                    append(*builder, exponent);
-                }
-            }
-        }
+The most tedious part when it comes to scalar-variables is by far checking for equal terms so going to go with the u16 encoding for now
+and if it is problematic then we revise. 03.12.2025
 
-        append(*builder, " + " );
+*/
+
+encode :: (ident: string) -> u16 {
+
+    // Encodes a scalar variable like 'a1' or 'a11' into a 16-bit integer in the following format:
+    //                 byte1                byte2
+    //       -----------------------| ---------------
+    // u16 = [character  num-digits | digit1  digit2]
+    //        ^6-bits    ^2-bits     ^4-bits  ^4-bits
+    //
+
+    assert(ident.count == 2 || ident.count == 3);
+
+    c := cast(u16)(ident[0] - #char "A"); // A = 65, z = = 122, diff = 58 which can be represented in 6 bits
+    n := cast(u16)ident.count - 1;        // n is the number of digits following the character.
+
+    value: u16;
+    value |= c << 10;
+    value |= n <<  8;
+
+    if n == 2 {
+        value |= cast(u16)(ident[1] - #char "0") << 4;
+        value |= cast(u16)(ident[2] - #char "0") << 0;
+    }
+    else
+    if n == 1 {
+        value |= cast(u16)(ident[1] - #char "0") << 4;
     }
 
-    // this is redundant but add the last term which is copy and pasting the code in the while loop above.
-    if term.factors.count == 0 {
-        value := tprint("%", term.value);
-        append(*builder, value);
+    return value;
+}
+
+decoder: String_Builder;
+decode :: (value: u16) -> string {
+
+    // Decodes a 16-bit integer like 1296 into the scalar symbol 'B1'
+    // Encoding procedure describes the format of the encoding.
+
+    reset(*decoder);
+    append(*decoder, cast(u8)((value >> 10) & 0x3F) + #char "A");
+
+    count := cast(u8)((value >> 8) & 0x03);
+
+    if count == 2 {
+        append(*decoder, cast(u8)((value >> 4) & 0xF) + #char "0");
+        append(*decoder, cast(u8)((value >> 0) & 0xF) + #char "0");
     }
-    else {
-        // scalar variable or product of scalar variables
-        if term.multiples != 1 {
-            multiples := tprint("%", term.multiples);
-            append(*builder, multiples);
-        }
-
-        for i: 0..term.factors.count-1 {
-            factor := term.factors[i];
-            scalar_variable := decode(factor.scalar_variable);
-            append(*builder, scalar_variable);
-
-            if factor.exponent > 1 {
-                exponent := tprint("%", factor.exponent);
-                append(*builder,"^");
-                append(*builder, exponent);
-            }
-        }
+    else
+    if count == 1 {
+        append(*decoder, cast(u8)((value >> 4) & 0xF) + #char "0");
     }
 
-    return builder_to_string(*builder);
+    return builder_to_string(*decoder);
 }
 
 lookup_variable :: (ident: string) -> bool, M_Element {
@@ -537,82 +339,4 @@ generate_basis_symbol :: (bits: int, grade: int, _1_element_symbols: [] string) 
     append(*builder, _1_element_symbols[i]);
 
     return builder_to_string(*builder);
-}
-
-/*
-
-Encode and decode scalar variables into u16's so that we don't have to store the text string to represent the variable.
-This allows 4 bytes to be used (the encoding + exponent) to represent any *valid* scalar variable.
-When a term contains a product (list) of scalar-variables this keeps the size of that product relatively small.
-Also allows factors to be ordered based on the u16 key which makes memcmp an available option to compare terms easily
-vs iterating over terms then iterating over liss of factors.
-
-An alternative approach is to intern the scalar variable strings. Then to compare two factors you just compare the pointers.
-Since we have to store the exponent alongside the pointer this makes the size of each factor grow to 16-bytes and we can't
-sort by pointer so the check would be an iteration over each list of factors.
-
-A third approach would be to maintain two parallel lists for scalar variables. A list of hashes and a list of symbols.
-When you encounter a scalar-variable you hash it (using some stupid simple hash that does powers of ten on place-value or something)
-then iterate through your list and look for that hash. If you find it then you return the index otherwise you append the list
-with the new hash and symbol and store the index in the Factor. If you allow fewer than 65535 scalar-variables the index could
-fit in a u16 and be used in the same manner as our current encode/decode scheme. The drawback to this approach is if the application
-is long-running a lot of scalar-variables could exist in the parallel lists and those checks just take longer and longer to execute.
-Could do an ordered insert of the hashes and symbols then binary search on lookup but that complicates the insert to ease the calc and lookup....
-
-The most tedious part when it comes to scalar-variables is by far checking for equal terms so going to go with the u16 encoding for now
-and if it is problematic then we revise. 03.12.2025
-
-*/
-
-encode :: (ident: string) -> u16 {
-
-    // Encodes a scalar variable like 'a1' or 'a11' into a 16-bit integer in the following format:
-    //                 byte1                byte2
-    //       -----------------------| ---------------
-    // u16 = [character  num-digits | digit1  digit2]
-    //        ^6-bits    ^2-bits     ^4-bits  ^4-bits
-    //
-
-    assert(ident.count == 2 || ident.count == 3);
-
-    c := cast(u16)(ident[0] - #char "A"); // A = 65, z = = 122, diff = 58 which can be represented in 6 bits
-    n := cast(u16)ident.count - 1;        // n is the number of digits following the character.
-
-    value: u16;
-    value |= c << 10;
-    value |= n <<  8;
-
-    if n == 2 {
-        value |= cast(u16)(ident[1] - #char "0") << 4;
-        value |= cast(u16)(ident[2] - #char "0") << 0;
-    }
-    else
-    if n == 1 {
-        value |= cast(u16)(ident[1] - #char "0") << 4;
-    }
-
-    return value;
-}
-
-decoder: String_Builder;
-decode :: (value: u16) -> string {
-
-    // Decodes a 16-bit integer like 1296 into the scalar symbol 'B1'
-    // Encoding procedure describes the format of the encoding.
-
-    reset(*decoder);
-    append(*decoder, cast(u8)((value >> 10) & 0x3F) + #char "A");
-
-    count := cast(u8)((value >> 8) & 0x03);
-
-    if count == 2 {
-        append(*decoder, cast(u8)((value >> 4) & 0xF) + #char "0");
-        append(*decoder, cast(u8)((value >> 0) & 0xF) + #char "0");
-    }
-    else
-    if count == 1 {
-        append(*decoder, cast(u8)((value >> 4) & 0xF) + #char "0");
-    }
-
-    return builder_to_string(*decoder);
 }
