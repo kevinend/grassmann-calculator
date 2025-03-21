@@ -1,10 +1,16 @@
 TODO: 03.21.2025
--- Move term into it's own file and all it's little helpers
--- Implement exterior product and regressive products (big day!)
--- Make the node_id default to -1 and make it a signed type
+-- Add semantic check that we take scalar multiplication where at least one element is a scalar.
+-- v = a1*e1 is crashing for unrecognized node to try and clone!
+-- Implement addition and subtraction with the lookup stuff
+-- Do the update to the symbol table
+-- Need to get back to commands and how those are handled as well. Always something! (dir and pos()) in particular then we can do the projection formulas!
 
--- Implement scalar multiplication so we have a1*e1 + a2*e2
+
 
 Done:
 xxx--Rename 'bits' to bitset (sounds more professional)
 xxx--Reorder the build files in alphabetical order.
+xxx--Move term into it's own file and all it's little helpers
+xxx-- Implement exterior product and regressive products (big day!)
+xxx-- Clean up term-to-string, so messy looking
+xxx-- Implement scalar multiplication so we have a1*e1 + a2*e2

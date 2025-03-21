@@ -116,60 +116,41 @@ multiply_terms :: (lhs: *Term, rhs: *Term) -> *Term {
 
 term_to_string :: (term: *Term) -> string {
 
-    builder: String_Builder;
-
-    while term.next != null {
+    term_to_string_helper :: (term: *Term, builder: *String_Builder) {
         if term.factors.count == 0 {
             value := tprint("%", term.value);
-            append(*builder, value);
+            append(builder, value);
         }
         else {
-            // scalar variable or product of scalar variables
+            // scalar variable or product of scalar variables.
             if term.multiples != 1 {
                 multiples := tprint("%", term.multiples);
-                append(*builder, multiples);
+                append(builder, multiples);
             }
-
+            
             for i: 0..term.factors.count-1 {
                 factor := term.factors[i];
                 scalar_variable := decode(factor.scalar_variable);
-                append(*builder, scalar_variable);
+                append(builder, scalar_variable);
 
                 if factor.exponent > 1 {
                     exponent := tprint("%", factor.exponent);
-                    append(*builder,"^");
-                    append(*builder, exponent);
+                    append(builder,"^");
+                    append(builder, exponent);
                 }
             }
         }
-
-        append(*builder, " + " );
     }
 
-    // this is redundant but add the last term which is copy and pasting the code in the while loop above.
-    if term.factors.count == 0 {
-        value := tprint("%", term.value);
-        append(*builder, value);
+    builder: String_Builder;
+    current := term;
+    
+    while current.next != null {
+        term_to_string_helper(current, *builder);
+        append(*builder, " + ");
+        current = current.next;
     }
-    else {
-        // scalar variable or product of scalar variables
-        if term.multiples != 1 {
-            multiples := tprint("%", term.multiples);
-            append(*builder, multiples);
-        }
-
-        for i: 0..term.factors.count-1 {
-            factor := term.factors[i];
-            scalar_variable := decode(factor.scalar_variable);
-            append(*builder, scalar_variable);
-
-            if factor.exponent > 1 {
-                exponent := tprint("%", factor.exponent);
-                append(*builder,"^");
-                append(*builder, exponent);
-            }
-        }
-    }
+    term_to_string_helper(current, *builder);
 
     return builder_to_string(*builder);
 }

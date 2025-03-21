@@ -94,8 +94,9 @@ eval :: (node: *Ast_Node) -> *Ast_Node {
         rhs := cast(*Element_Node)binary_op.rhs;
 
         if binary_op.op == {
-            case .Exterior_Product;   { result = exterior_product(lhs, rhs);   }
-            case .Regressive_Product; { result = regressive_product(lhs, rhs); }
+            case .Scalar_Multiplication; { result = scalar_multiplication(lhs, rhs);   }
+            case .Exterior_Product;      { result = exterior_product(lhs, rhs);   }
+            case .Regressive_Product;    { result = regressive_product(lhs, rhs); }
             case; {
                 // operator is sum or difference. defer until later step.
                 result = binary_op;
@@ -141,6 +142,19 @@ complement :: (type: Complement_Type, k: *Element_Node) -> *Element_Node {
     }
 
     return n_k;
+}
+
+scalar_multiplication :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_Node {
+
+    assert(lhs.basis.grade == 0 || rhs.basis.grade == 0);
+
+    coefficient := new_term(0);
+    result      := new_element_node(0, coefficient, get_basis_element(0));
+
+    result.coefficient = multiply_terms(lhs.coefficient, rhs.coefficient);
+    result.basis       = get_basis_element(lhs.basis.bitset | rhs.basis.bitset);
+
+    return result;
 }
 
 exterior_product :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_Node {
