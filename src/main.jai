@@ -102,7 +102,7 @@ main :: () {
     //    descend(ast.root);
 
         resolve_symbols(*ast, *space);
-  //      descend(ast.root);
+     //   descend(ast.root);
 
         pass := check_semantics(*ast);
         if !pass {
@@ -114,7 +114,7 @@ main :: () {
         // so maybe not a huge problem? 03.18.2025
 
         expanded_ast = expand(ast);
-        descend(expanded_ast.root);
+       // descend(expanded_ast.root);
 
         simplified_ast = simplify(expanded_ast);
         descend(simplified_ast.root);

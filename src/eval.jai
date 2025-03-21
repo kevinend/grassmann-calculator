@@ -62,14 +62,14 @@ scratch: Scratch;
 
 eval :: (node: *Ast_Node) -> *Ast_Node {
 
-    // Depth-first search of the AST.
     // Evaluates all 'local' operations, so everything excluding addition and subtraction.
 
-    if node.kind == .Element {
-        return node;
-    }
 
     result: *Ast_Node = null;
+    if node.kind == .Element {
+        result = node;
+    }
+    else
     if node.kind == .Unary_Operator {
         unary_op    := cast(*Unary_Operator_Node)node;
         unary_op.rhs = eval(unary_op.rhs);
@@ -83,8 +83,27 @@ eval :: (node: *Ast_Node) -> *Ast_Node {
             case .Right_Complement; { result = complement( Complement_Type.Right, arg); }
         }
     }
+    else
+    if node.kind == .Binary_Operator {
+        binary_op := cast(*Binary_Operator_Node)node;
+        binary_op.lhs = eval(binary_op.lhs);
+        binary_op.rhs = eval(binary_op.rhs);
 
-   // assert(result != null);
+        // assume binary operator is a Grassmann product to create short-hand element node vars ahead of time.
+        lhs := cast(*Element_Node)binary_op.lhs;
+        rhs := cast(*Element_Node)binary_op.rhs;
+
+        if binary_op.op == {
+            case .Exterior_Product;   { result = exterior_product(lhs, rhs);   }
+            case .Regressive_Product; { result = regressive_product(lhs, rhs); }
+            case; {
+                // operator is sum or difference. defer until later step.
+                result = binary_op;
+            }
+        }
+    }
+
+    // This function should only return basis element nodes and addition and subtraction operator nodes.
     return result;
 
 }
@@ -124,6 +143,64 @@ complement :: (type: Complement_Type, k: *Element_Node) -> *Element_Node {
     return n_k;
 }
 
+exterior_product :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_Node {
+
+    coefficient := new_term(0);
+    result      := new_element_node(0, coefficient, get_basis_element(0));
+
+    if lhs.basis.grade == 0 || rhs.basis.grade == 0 {
+        // scalar multiplication
+        result.coefficient = multiply_terms(lhs.coefficient, rhs.coefficient);
+        result.basis       = get_basis_element(lhs.basis.bits | rhs.basis.bits);
+    }
+    else
+    if (lhs.basis.bits & rhs.basis.bits) == 0 {
+        // no one elements in common; implies sum of grades is less than or equal to N.
+        result.coefficient = multiply_terms(lhs.coefficient, rhs.coefficient);
+        result.basis       = get_basis_element(lhs.basis.bits | rhs.basis.bits);
+
+        anticommute := does_product_anticommute(lhs.basis.bits, rhs.basis.bits);
+        if anticommute {
+            scale_term(result.coefficient, -1);
+        }
+    }
+    // else no one element in common, result is zero.
+
+    return result;
+}
+
+regressive_product :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_Node {
+
+    coefficient := new_term(0);
+    result      := new_element_node(0, coefficient, get_basis_element(0));
+    if (lhs.basis.bits | rhs.basis.bits) == space.n_element.bits {
+
+        result.basis = get_basis_element(lhs.basis.bits & rhs.basis.bits);
+        if result.basis.bits == 0 {
+            // The lhs and rhs are complements of one another generating a zero element.
+            result.coefficient = multiply_terms(lhs.coefficient, rhs.coefficient);
+
+            anticommute := does_product_anticommute(lhs.basis.bits, rhs.basis.bits);
+            if anticommute {
+                scale_term(result.coefficient, -1);
+            }
+        }
+        else {
+            result.coefficient = multiply_terms(lhs.coefficient, rhs.coefficient);
+
+            anticommute1 := does_product_anticommute(lhs.basis.bits ^ result.basis.bits, result.basis.bits);
+            anticommute2 := does_product_anticommute(result.basis.bits, rhs.basis.bits);
+
+            if anticommute1 != anticommute2 {
+                scale_term(result.coefficient, -1);
+            }
+        }
+    }
+    // else arguments do *not* generate at least the n-element so the result is zero.
+
+    return result;
+}
+
 does_product_anticommute :: (lhs: int, rhs: int) -> bool {
 
     // Steps:
@@ -157,16 +234,10 @@ does_product_anticommute :: (lhs: int, rhs: int) -> bool {
 }
 
 // Utility functions for Grassmann products that operate on individual bits.
-// MSB and LSB stand for most/least significant bit (not byte)!
-
 bit_is_set :: inline (bitset: int, bit: int) -> bool {
     return (bitset & (1 << bit)) != 0;
 }
 
 set_bit :: inline (bitset: *int, bit: int) {
     bitset.* |= (1 << bit);
-}
-
-unset_set :: inline (bitset: *int, bit: int) {
-    bitset.* ^= (1 << bit);
 }

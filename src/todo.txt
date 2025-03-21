@@ -1,0 +1,5 @@
+TODO: 03.21.2025
+-- Move term into it's own file and all it's little helpers
+-- Implement exterior product and regressive products (big day!)
+-- Make the node_id default to -1 and make it a signed type
+-- Rename 'bits' to bitset (sounds more professional)

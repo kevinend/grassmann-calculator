@@ -170,7 +170,7 @@ copy_node :: (node: *Ast_Node) -> *Ast_Node {
 	dst: *Ast_Node = null;
 	if node.kind == .Element {
 		src         := cast(*Element_Node)node;
-        coefficient := copy_term(src.coefficient);
+        coefficient := copy_terms(src.coefficient);
         basis       := src.basis;
 
 		dst = new_element_node(src.node_id, coefficient, basis);
