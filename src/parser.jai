@@ -101,7 +101,7 @@ descend :: (node: *Ast_Node, indent: int = 0) {
             ,coefficient_to_string(element.coefficient)
             ,element.basis.grade
             ,element.basis.symbol
-            ,element.basis.bits
+            ,element.basis.bitset
 		);
     }
     else

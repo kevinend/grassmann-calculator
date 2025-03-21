@@ -41,7 +41,7 @@
 Basis_Element :: struct {
     // Represents any basis element from grade [0,n] in the currently declared space.
     grade:  int;
-    bits:   int;
+    bitset: int;
     symbol: string;
 }
 
@@ -75,8 +75,8 @@ Exterior_Space :: struct {
     dimension: int;
     n_element: *Basis_Element;
 
-    basis_elements:         [MAX_NUMBER_OF_BASIS_ELEMENTS]  Basis_Element;
-    bits_to_basis_elements: [MAX_NUMBER_OF_BASIS_ELEMENTS] *Basis_Element;
+    basis_elements:           [MAX_NUMBER_OF_BASIS_ELEMENTS]  Basis_Element;
+    bitset_to_basis_elements: [MAX_NUMBER_OF_BASIS_ELEMENTS] *Basis_Element;
 
     scalar_variable_prefix_characters: string;
     user_variables: Table(string, M_Element);
@@ -93,12 +93,12 @@ update_exterior_space :: (dimension: int, _1_element_symbols: [] string, scalar_
 
     num_basis_elements := power(2, dimension);
 
-    space.basis_elements[0] = Basis_Element.{ grade = 0, bits = 0, symbol = "1" };
+    space.basis_elements[0] = Basis_Element.{ grade = 0, bitset = 0, symbol = "1" };
     count: int = 1;
     for j: 1..dimension {
         generate_basis_elements(
              i 		 = 0
-            ,element = Basis_Element.{ grade = 0, bits = 0 }
+            ,element = Basis_Element.{ grade = 0, bitset = 0 }
             ,n       = dimension
             ,k	     = j
             ,c       = *count
@@ -109,13 +109,13 @@ update_exterior_space :: (dimension: int, _1_element_symbols: [] string, scalar_
 
     for i: 1..num_basis_elements-1 {
         element        := *space.basis_elements[i];
-        element.symbol =   generate_basis_symbol(element.bits, element.grade, _1_element_symbols);
+        element.symbol =   generate_basis_symbol(element.bitset, element.grade, _1_element_symbols);
     }
 
     // update the mapping table from an element's bits to the basis element
     for i: 0..num_basis_elements-1 {
-        index := space.basis_elements[i].bits;
-        space.bits_to_basis_elements[index] = *space.basis_elements[i];
+        index := space.basis_elements[i].bitset;
+        space.bitset_to_basis_elements[index] = *space.basis_elements[i]; 
     }
 
     space.n_element = *space.basis_elements[num_basis_elements-1];
@@ -126,7 +126,7 @@ update_exterior_space :: (dimension: int, _1_element_symbols: [] string, scalar_
 
 get_basis_element :: (bits: int) -> *Basis_Element {
 
-    basis_element := space.bits_to_basis_elements[bits];
+    basis_element := space.bitset_to_basis_elements[bits];
     return basis_element;
 }
 
@@ -507,8 +507,8 @@ generate_basis_elements :: (
     }
 
     // include the current one element (represented as 2^i so just a bit-shift) and find the basis-elements with this 1-element and do the same excluding this current 1-element
-    include_first := Basis_Element.{ grade = element.grade + 1, bits = element.bits | (1 << i) };
-    exclude_first := Basis_Element.{ grade = element.grade    , bits = element.bits };
+    include_first := Basis_Element.{ grade = element.grade + 1, bitset = element.bitset | (1 << i) };
+    exclude_first := Basis_Element.{ grade = element.grade    , bitset = element.bitset };
 
     generate_basis_elements(i+1, include_first, n, k, c);
     generate_basis_elements(i+1, exclude_first, n, k, c);

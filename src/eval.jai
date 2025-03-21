@@ -121,7 +121,7 @@ complement :: (type: Complement_Type, k: *Element_Node) -> *Element_Node {
 
     // Generates an (n-k)-element from the input k-element.
 
-    bits        := space.n_element.bits ^ k.basis.bits;
+    bits        := space.n_element.bitset ^ k.basis.bitset;
     basis       := get_basis_element(bits);
     coefficient := k.coefficient;
 
@@ -129,11 +129,11 @@ complement :: (type: Complement_Type, k: *Element_Node) -> *Element_Node {
 
     anticommute: bool = false;
     if type == .Left {
-        anticommute = does_product_anticommute(n_k.basis.bits, k.basis.bits);
+        anticommute = does_product_anticommute(n_k.basis.bitset, k.basis.bitset);
     }
     else
     if type == .Right {
-        anticommute = does_product_anticommute(k.basis.bits, n_k.basis.bits);
+        anticommute = does_product_anticommute(k.basis.bitset, n_k.basis.bitset);
     }
 
     if anticommute == true {
@@ -151,15 +151,15 @@ exterior_product :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_Node {
     if lhs.basis.grade == 0 || rhs.basis.grade == 0 {
         // scalar multiplication
         result.coefficient = multiply_terms(lhs.coefficient, rhs.coefficient);
-        result.basis       = get_basis_element(lhs.basis.bits | rhs.basis.bits);
+        result.basis       = get_basis_element(lhs.basis.bitset | rhs.basis.bitset);
     }
     else
-    if (lhs.basis.bits & rhs.basis.bits) == 0 {
+    if (lhs.basis.bitset & rhs.basis.bitset) == 0 {
         // no one elements in common; implies sum of grades is less than or equal to N.
         result.coefficient = multiply_terms(lhs.coefficient, rhs.coefficient);
-        result.basis       = get_basis_element(lhs.basis.bits | rhs.basis.bits);
+        result.basis       = get_basis_element(lhs.basis.bitset | rhs.basis.bitset);
 
-        anticommute := does_product_anticommute(lhs.basis.bits, rhs.basis.bits);
+        anticommute := does_product_anticommute(lhs.basis.bitset, rhs.basis.bitset);
         if anticommute {
             scale_term(result.coefficient, -1);
         }
@@ -173,14 +173,14 @@ regressive_product :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_Node 
 
     coefficient := new_term(0);
     result      := new_element_node(0, coefficient, get_basis_element(0));
-    if (lhs.basis.bits | rhs.basis.bits) == space.n_element.bits {
+    if (lhs.basis.bitset | rhs.basis.bitset) == space.n_element.bitset {
 
-        result.basis = get_basis_element(lhs.basis.bits & rhs.basis.bits);
-        if result.basis.bits == 0 {
+        result.basis = get_basis_element(lhs.basis.bitset & rhs.basis.bitset);
+        if result.basis.bitset == 0 {
             // The lhs and rhs are complements of one another generating a zero element.
             result.coefficient = multiply_terms(lhs.coefficient, rhs.coefficient);
 
-            anticommute := does_product_anticommute(lhs.basis.bits, rhs.basis.bits);
+            anticommute := does_product_anticommute(lhs.basis.bitset, rhs.basis.bitset);
             if anticommute {
                 scale_term(result.coefficient, -1);
             }
@@ -188,8 +188,8 @@ regressive_product :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_Node 
         else {
             result.coefficient = multiply_terms(lhs.coefficient, rhs.coefficient);
 
-            anticommute1 := does_product_anticommute(lhs.basis.bits ^ result.basis.bits, result.basis.bits);
-            anticommute2 := does_product_anticommute(result.basis.bits, rhs.basis.bits);
+            anticommute1 := does_product_anticommute(lhs.basis.bitset ^ result.basis.bitset, result.basis.bitset);
+            anticommute2 := does_product_anticommute(result.basis.bitset, rhs.basis.bitset);
 
             if anticommute1 != anticommute2 {
                 scale_term(result.coefficient, -1);
