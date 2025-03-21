@@ -52,12 +52,13 @@ new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> (term:
     return term;
 }
 
-copy_terms :: (term: *Term) -> *Term {
+copy_terms :: (term: *Term) -> *Term, int {
 
     // Deep copy of the entire list of terms.
     assert(term != null);
 
-    head := copy_term(term);
+    head  := copy_term(term);
+    count := 1;
     
     src := term.next;
     dst := head;
@@ -65,9 +66,11 @@ copy_terms :: (term: *Term) -> *Term {
         dst.next = copy_term(src);
         dst = dst.next;
         src = src.next;
+        
+        count += 1;
     }
 
-    return head;
+    return head, count;
 }
 
 scale_term :: (term: *Term, s: float) {
@@ -114,6 +117,57 @@ multiply_terms :: (lhs: *Term, rhs: *Term) -> *Term {
     return head.next;
 }
 
+terms_are_equal :: (lterm: *Term, rterm: *Term) -> bool {
+    
+	// Terms are equal when the following conditions are true.
+	//  1. Each term contains the same number of factors (even if the count is zero).
+	//  2. Each term contains the same factors in the same order.
+	//  3. Each factor in the term is raised to the same power.
+	if lterm.factors.count == rterm.factors.count {
+		count := lterm.factors.count;
+		return memcmp(lterm.factors.data, rterm.factors.data, size_of(Factor) * count) == 0;
+	}
+	else {
+		return false;
+	}
+}
+
+combine_like_terms :: (lhs: *Term, rhs: *Term) -> *Term {
+
+    // Combines terms of common basis elements into a new list of terms.
+    // Example: (3+a1)e1 + (b1+4+a1)e1 = (7+2a1+b1)e1
+
+    head, count := copy_terms(lhs);
+    Lterm := head; // head of the copied terms
+
+    if rhs == null {
+        return head;
+    }
+
+    tail := head;
+    while tail.next != null {
+        tail = tail.next;
+    }
+
+    for i: 0..count-1 {
+        Rterm := rhs;
+        if terms_are_equal(Lterm, Rterm) {
+            // TODO: technically you don't need to iterate over this RHS again once a match is found but not worrying about it now.
+            Lterm.multiples += Rterm.multiples;
+        }
+        else {
+            // Cannot combine the two terms so add the rterm to the list of terms
+            tail.next = copy_term(Rterm);
+            tail = tail.next;
+        }
+
+        Lterm = Lterm.next;
+    }
+
+    return head;
+ }
+ 
+
 term_to_string :: (term: *Term) -> string {
 
     term_to_string_helper :: (term: *Term, builder: *String_Builder) {
@@ -156,22 +210,6 @@ term_to_string :: (term: *Term) -> string {
 }
 
 #scope_file
-
-operator == :: (lterm: Term, rterm: Term) -> bool {
-    
-	// Terms are equal when the following conditions are true.
-	//  1. Each term contains the same number of factors (even if the count is zero).
-	//  2. Each term contains the same factors in the same order.
-	//  3. Each factor in the term is raised to the same power.
-	if lterm.factors.count == rterm.factors.count {
-		count := lterm.factors.count;
-
-		return memcmp(lterm.factors.data, rterm.factors.data, size_of(Factor) * count) == 0;
-	}
-	else {
-		return false;
-	}
-}
 
 copy_term :: (term: *Term) -> *Term {
 

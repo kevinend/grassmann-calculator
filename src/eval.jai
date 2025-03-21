@@ -28,14 +28,23 @@
 
 simplify :: (ast: Ast) -> Ast {
 
-    reduced: Ast;
-    reduced.root = eval(ast.root);
-    return reduced;
+    simplified: Ast;
+
+    reset_scratch();
+    simplified.root = eval(ast.root);
+    sum(simplified.root);
+
+    for i: 0..Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS-1 {
+        if scratch.buffer[i] != null {
+            print("Value == %\n", term_to_string(scratch.buffer[i]));
+        }
+    }
+    return simplified;
 }
 
 reset_scratch :: () {
 
-    memset(*scratch.buffer.data, 0, Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS * size_of(*Term));
+    memset(scratch.buffer.data, 0, Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS * size_of(*Term));
     scratch.count = 0;
 
     return;
@@ -63,7 +72,6 @@ scratch: Scratch;
 eval :: (node: *Ast_Node) -> *Ast_Node {
 
     // Evaluates all 'local' operations, so everything excluding addition and subtraction.
-
 
     result: *Ast_Node = null;
     if node.kind == .Element {
@@ -245,6 +253,31 @@ does_product_anticommute :: (lhs: int, rhs: int) -> bool {
     }
 
     return (swaps % 2 != 0);
+}
+
+sum :: (node: *Ast_Node) {
+    
+    // search the AST for basis elements and add each into it's location in the scratch buffer.
+    if node.kind == .Element {
+        element := cast(*Element_Node)node;
+        index   := get_basis_element_index(element.basis.bitset);
+
+        print("index == %\n", index);
+
+        term := scratch.buffer[index];
+        result := combine_like_terms(element.coefficient, term);
+
+        scratch.buffer[index] = result;
+    }
+    else
+    if node.kind == .Binary_Operator {
+        // TODO: Assumes only addition! not subtraction here!
+        binary_op := cast(*Binary_Operator_Node)node;
+        sum(binary_op.lhs);
+        sum(binary_op.rhs);
+    }
+    
+    return;
 }
 
 // Utility functions for Grassmann products that operate on individual bits.

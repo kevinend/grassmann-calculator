@@ -108,40 +108,20 @@ update_exterior_space :: (dimension: int, _1_element_symbols: [] string, scalar_
     return;
 }
 
-get_basis_element :: (bits: int) -> *Basis_Element {
+get_basis_element :: (bitset: int) -> *Basis_Element {
 
-    basis_element := space.bitset_to_basis_elements[bits];
+    basis_element := space.bitset_to_basis_elements[bitset];
     return basis_element;
 }
 
+get_basis_element_index :: (bitset: int) -> u64 {
 
+    basis_element := space.bitset_to_basis_elements[bitset];
+    index := (cast(u64)basis_element - cast(u64)*space.basis_elements[0]) / size_of(Basis_Element);
 
-
-/* 
-STUB:
-combine_like_terms :: (lhs: *Term, rhs: *Term) -> *Term {
+    return index;
+}
  
-	// Example:
-	// Input  = (3 + a1) + (b1 + 4 + a1)
-	// Output = (7 + 2a1 + b1)
-	Copy the lhs terms into a new list. Keep track of the number of terms.
-	Iterate over each term in the copy.
-	  -- Iterate by index from previous step
-	  -- If you iterate while .next != null then when you append to your copy from the rhs you will unnecessarily iterate that element over the rest of the rhs)
-	  -- Double-check ^ might not be true, too tired.
-	  Iterate over each term in the rhs.
-		if lterm == rterm {
-			lterm-copy.multiples = lterm.multiples + rterm.multiples;
-			-- can keep track of the previous while iterating rhs and 'remove' this node from the rhs so it isn't constantly checked
-		}
-		else {
-			-- can't combine the two terms so add the rterm to the list of lterms
-		}
- }
- 
-*/
- 
-
 matches_1_element :: (ident: string) -> *Basis_Element {
 
     element: *Basis_Element = null;
