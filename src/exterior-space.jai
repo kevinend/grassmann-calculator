@@ -113,14 +113,6 @@ get_basis_element :: (bitset: int) -> *Basis_Element {
     basis_element := space.bitset_to_basis_elements[bitset];
     return basis_element;
 }
-
-get_basis_element_index :: (bitset: int) -> u64 {
-
-    basis_element := space.bitset_to_basis_elements[bitset];
-    index := (cast(u64)basis_element - cast(u64)*space.basis_elements[0]) / size_of(Basis_Element);
-
-    return index;
-}
  
 matches_1_element :: (ident: string) -> *Basis_Element {
 

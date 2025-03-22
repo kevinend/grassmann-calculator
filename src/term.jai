@@ -4,7 +4,9 @@
     (2) A 'scalar-variable' like 'a1' which is a symbol representing a scalar in an expression.
     (3) A list of 'scalar-variables' such as "a1a2a3" which represents the product of 3 scalar variables "a1", "a2", and "a3".
 
-    Generally, a term (which is implicitly a list of terms) is used as a coefficient for a basis element. When that basis element
+    A list of terms then represents sums of the above so something like "3 + a1 + b2c3"
+
+    The list of terms is used as a coefficient for a basis element. When that basis element
     is grade-0 it represents the value of that 0-element.
 */
 
@@ -23,6 +25,75 @@ Term :: struct {
     next: *Term;
 }
 
+Terms :: struct {
+    // Represents the list of terms that compose the coefficient of a basis element.
+    head: *Term = null;
+    tail: *Term = null;
+}
+
+zero_terms :: (list: Terms) -> bool {
+    return list.head == null && list.tail == null;
+}
+
+leading_term :: inline (list: Terms) -> *Term {
+    return list.head;
+}
+
+last_term :: inline (list: Terms) -> *Term {
+    return list.tail;
+}
+
+next_term :: inline (term: *Term) -> *Term {
+    return term.next;
+}
+
+append_term :: (list: *Terms, term: *Term) {
+    
+    // Adds the new to the end of the list.
+
+    assert(list != null);
+    assert(term != null);
+
+    if zero_terms(list) {
+        list.head = term;
+        list.tail = term;
+    }
+    else {
+        list.tail.next = term;
+        list.tail      = term;
+    }
+
+    return;
+}
+
+prepend_term :: (list: *Terms, term: *Term) {
+    
+    // Adds the new node to the front of the list.
+
+    assert(list != null);
+    assert(term != null);
+
+    if zero_terms(list) {
+        list.head = term;
+        list.tail = term;
+    }
+    else {
+        term.next = list.head;
+        list.head = term;
+    }
+
+    return;
+}
+
+new_coefficient :: (value: float) -> Terms {
+
+    list: Terms;
+    term := new_term(value);
+
+    append_term(*list, term);
+    return list;
+}
+
 new_term :: (value: float) -> (term: *Term) {
 
     term: *Term = talloc(size_of(Term));
@@ -31,6 +102,15 @@ new_term :: (value: float) -> (term: *Term) {
 
     term.value = value;
     return term;
+}
+
+new_coefficient :: (multiples: float, exponent: s16, scalar_variable: string) -> Terms {
+
+    list: Terms;
+    term := new_term(multiples, exponent, scalar_variable);
+
+    append_term(*list, term);
+    return list;
 }
 
 new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> (term: *Term) {
@@ -52,30 +132,30 @@ new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> (term:
     return term;
 }
 
-copy_terms :: (term: *Term) -> *Term, int {
+copy_terms :: (source: Terms) -> Terms, int {
 
-    // Deep copy of the entire list of terms.
-    assert(term != null);
+    // Copy all the terms from the source list into the destination list.
+    src := leading_term(source);
 
-    head  := copy_term(term);
+    destination: Terms;
+    append_term(*destination, copy_term(src));
+
     count := 1;
     
-    src := term.next;
-    dst := head;
+    src = next_term(src);
     while src != null {
-        dst.next = copy_term(src);
-        dst = dst.next;
-        src = src.next;
+        append_term(*destination, copy_term(src));
+        src = next_term(src);
         
         count += 1;
     }
 
-    return head, count;
+    return destination, count;
 }
 
-scale_term :: (term: *Term, s: float) {
+scale_coefficient :: (list: Terms, s: float) {
 
-    c := term;
+    c := leading_term(list);
     while c {
         c.multiples *= s;
         c = c.next;
@@ -84,7 +164,7 @@ scale_term :: (term: *Term, s: float) {
     return;
 }
 
-multiply_terms :: (lhs: *Term, rhs: *Term) -> *Term {
+multiply_coefficients :: (lhs: Terms, rhs: Terms) -> Terms {
 
     /*
         Distribute scalar (and scalar variables).
@@ -99,22 +179,20 @@ multiply_terms :: (lhs: *Term, rhs: *Term) -> *Term {
         Each element always has at *least* one term.
     */
 
-    head: Term;   // Hack: Don't return head, use it as a placeholder where the real 'head' is head.next
-    Lterm := lhs;
-    Rterm := rhs;
+    result: Terms;
+    Lterm := leading_term(lhs);
+    Rterm := leading_term(rhs);
 
-    current := *head;
     while Lterm != null {
-        Rterm := rhs;
         while Rterm != null {
-            current.next = multiply_term(Lterm, Rterm);
-            current = current.next;
-            Rterm = Rterm.next;
+            product := multiply_term(Lterm, Rterm);
+            append_term(*result, product);
+            Rterm = next_term(Rterm);
         }
-        Lterm = Lterm.next;
+        Lterm = next_term(Lterm);
     }
 
-    return head.next;
+    return result;
 }
 
 terms_are_equal :: (lterm: *Term, rterm: *Term) -> bool {
@@ -132,43 +210,39 @@ terms_are_equal :: (lterm: *Term, rterm: *Term) -> bool {
 	}
 }
 
-combine_like_terms :: (lhs: *Term, rhs: *Term) -> *Term {
+// TODO: This doesn't work bro!
+// Like you just combine the first term and got lucky because we onl
+combine_like_terms :: (lhs: Terms, rhs: Terms) -> Terms {
 
     // Combines terms of common basis elements into a new list of terms.
     // Example: (3+a1)e1 + (b1+4+a1)e1 = (7+2a1+b1)e1
 
-    head, count := copy_terms(lhs);
-    Lterm := head; // head of the copied terms
+    result, count := copy_terms(lhs);
+    Lterm := leading_term(result);
 
-    if rhs == null {
-        return head;
-    }
+    if zero_terms(rhs) { return result; }
 
-    tail := head;
-    while tail.next != null {
-        tail = tail.next;
-    }
+    Rterm := leading_term(rhs);
+    for i: 0..count-1 {         // iterate over count otherwise when you add to the result list you will keep iterating over the newly added nodes!
+        while Rterm != null {
+            if terms_are_equal(Lterm, Rterm) {
+                // TODO: technically you don't need to iterate over this RHS again once a match is found but not worrying about it now.
+                Lterm.multiples += Rterm.multiples;
+            }
+            else {
+                // Cannot combine the two terms so add the rterm to the list of terms
+                append_term(*result, Rterm);
+            }
 
-    for i: 0..count-1 {
-        Rterm := rhs;
-        if terms_are_equal(Lterm, Rterm) {
-            // TODO: technically you don't need to iterate over this RHS again once a match is found but not worrying about it now.
-            Lterm.multiples += Rterm.multiples;
+            next_term(Rterm);
         }
-        else {
-            // Cannot combine the two terms so add the rterm to the list of terms
-            tail.next = copy_term(Rterm);
-            tail = tail.next;
-        }
-
-        Lterm = Lterm.next;
+        next_term(Lterm);
     }
 
-    return head;
+    return result;
  }
- 
 
-term_to_string :: (term: *Term) -> string {
+term_to_string :: (list: Terms) -> string {
 
     term_to_string_helper :: (term: *Term, builder: *String_Builder) {
         if term.factors.count == 0 {
@@ -197,7 +271,7 @@ term_to_string :: (term: *Term) -> string {
     }
 
     builder: String_Builder;
-    current := term;
+    current := leading_term(list);
     
     while current.next != null {
         term_to_string_helper(current, *builder);

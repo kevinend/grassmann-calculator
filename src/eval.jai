@@ -34,18 +34,14 @@ simplify :: (ast: Ast) -> Ast {
     simplified.root = eval(ast.root);
     sum(simplified.root);
 
-    for i: 0..Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS-1 {
-        if scratch.buffer[i] != null {
-            print("Value == %\n", term_to_string(scratch.buffer[i]));
-        }
-    }
+    simplified.root = scratch_to_ast();
     return simplified;
 }
 
 reset_scratch :: () {
 
-    memset(scratch.buffer.data, 0, Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS * size_of(*Term));
-    scratch.count = 0;
+    memset(scratch.buffer.data, 0,  Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS * size_of(Terms));
+    scratch.populated_count = 0;
 
     return;
 }
@@ -59,12 +55,14 @@ Complement_Type :: enum {
 
 Scratch :: struct {
 
+    // TODO: Fix this comment before committing! not true anymore!
     // Scratch space is used to 'flatten' the tree after evaluation of other operations.
     // Since we know the canonical ordering for the elements we can take a node from the tree, figure out it's 'display' location
     // then use that same index to sum all other leaves in the tree that point to the same element.
 
-    buffer: [Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS] *Term;
-    count: int;
+    buffer:          [Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS] Terms;
+    populated_slots: [Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS] int;
+    populated_count: int;
 }
 
 scratch: Scratch;
@@ -121,7 +119,7 @@ negate :: (element: *Element_Node) -> *Element_Node {
 
     assert(element != null);
     
-    scale_term(element.coefficient, -1);
+    scale_coefficient(element.coefficient, -1);
     result := new_element_node(element.node_id, element.coefficient, element.basis);
     return result;
 }
@@ -146,7 +144,7 @@ complement :: (type: Complement_Type, k: *Element_Node) -> *Element_Node {
     }
 
     if anticommute == true {
-        scale_term(n_k.coefficient, -1);
+        scale_coefficient(n_k.coefficient, -1);
     }
 
     return n_k;
@@ -156,10 +154,10 @@ scalar_multiplication :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_No
 
     assert(lhs.basis.grade == 0 || rhs.basis.grade == 0);
 
-    coefficient := new_term(0);
+    coefficient := new_coefficient(0);
     result      := new_element_node(0, coefficient, get_basis_element(0));
 
-    result.coefficient = multiply_terms(lhs.coefficient, rhs.coefficient);
+    result.coefficient = multiply_coefficients(lhs.coefficient, rhs.coefficient);
     result.basis       = get_basis_element(lhs.basis.bitset | rhs.basis.bitset);
 
     return result;
@@ -167,23 +165,23 @@ scalar_multiplication :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_No
 
 exterior_product :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_Node {
 
-    coefficient := new_term(0);
+    coefficient := new_coefficient(0);
     result      := new_element_node(0, coefficient, get_basis_element(0));
 
     if lhs.basis.grade == 0 || rhs.basis.grade == 0 {
         // scalar multiplication
-        result.coefficient = multiply_terms(lhs.coefficient, rhs.coefficient);
+        result.coefficient = multiply_coefficients(lhs.coefficient, rhs.coefficient);
         result.basis       = get_basis_element(lhs.basis.bitset | rhs.basis.bitset);
     }
     else
     if (lhs.basis.bitset & rhs.basis.bitset) == 0 {
         // no one elements in common; implies sum of grades is less than or equal to N.
-        result.coefficient = multiply_terms(lhs.coefficient, rhs.coefficient);
+        result.coefficient = multiply_coefficients(lhs.coefficient, rhs.coefficient);
         result.basis       = get_basis_element(lhs.basis.bitset | rhs.basis.bitset);
 
         anticommute := does_product_anticommute(lhs.basis.bitset, rhs.basis.bitset);
         if anticommute {
-            scale_term(result.coefficient, -1);
+            scale_coefficient(result.coefficient, -1);
         }
     }
     // else no one element in common, result is zero.
@@ -193,28 +191,28 @@ exterior_product :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_Node {
 
 regressive_product :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_Node {
 
-    coefficient := new_term(0);
+    coefficient := new_coefficient(0);
     result      := new_element_node(0, coefficient, get_basis_element(0));
     if (lhs.basis.bitset | rhs.basis.bitset) == space.n_element.bitset {
 
         result.basis = get_basis_element(lhs.basis.bitset & rhs.basis.bitset);
         if result.basis.bitset == 0 {
             // The lhs and rhs are complements of one another generating a zero element.
-            result.coefficient = multiply_terms(lhs.coefficient, rhs.coefficient);
+            result.coefficient = multiply_coefficients(lhs.coefficient, rhs.coefficient);
 
             anticommute := does_product_anticommute(lhs.basis.bitset, rhs.basis.bitset);
             if anticommute {
-                scale_term(result.coefficient, -1);
+                scale_coefficient(result.coefficient, -1);
             }
         }
         else {
-            result.coefficient = multiply_terms(lhs.coefficient, rhs.coefficient);
+            result.coefficient = multiply_coefficients(lhs.coefficient, rhs.coefficient);
 
             anticommute1 := does_product_anticommute(lhs.basis.bitset ^ result.basis.bitset, result.basis.bitset);
             anticommute2 := does_product_anticommute(result.basis.bitset, rhs.basis.bitset);
 
             if anticommute1 != anticommute2 {
-                scale_term(result.coefficient, -1);
+                scale_coefficient(result.coefficient, -1);
             }
         }
     }
@@ -260,14 +258,17 @@ sum :: (node: *Ast_Node) {
     // search the AST for basis elements and add each into it's location in the scratch buffer.
     if node.kind == .Element {
         element := cast(*Element_Node)node;
-        index   := get_basis_element_index(element.basis.bitset);
 
-        print("index == %\n", index);
+        coefficient := scratch.buffer[element.basis.bitset];
+        result      := combine_like_terms(element.coefficient, coefficient);
 
-        term := scratch.buffer[index];
-        result := combine_like_terms(element.coefficient, term);
+        if zero_terms(coefficient) {
+            // first time updating this slot in the buffer.
+            scratch.populated_slots[scratch.populated_count] = element.basis.bitset;
+            scratch.populated_count += 1;
+        }
 
-        scratch.buffer[index] = result;
+        scratch.buffer[element.basis.bitset] = result;
     }
     else
     if node.kind == .Binary_Operator {
@@ -278,6 +279,54 @@ sum :: (node: *Ast_Node) {
     }
     
     return;
+}
+
+// TODO: This has to go in LONG-TERM storage! You are overwriting this every single time!!
+scratch_to_ast :: () -> *Ast_Node {
+
+    bitset:       int   = 0;
+    coefficient:  Terms = ---;
+    basis:       *Basis_Element = null;
+
+    if scratch.populated_count == 1 {
+        bitset      = scratch.populated_slots[0];
+        coefficient = scratch.buffer[bitset];
+        basis       = get_basis_element(bitset);
+
+		root := new_element_node(0, coefficient, basis);
+        return root;
+	}
+	else {
+		root := new_binary_operator_node(0, null, .Addition, null);
+		i: int = 0;
+		current := root;
+		while i < scratch.populated_count-2 {
+            bitset      = scratch.populated_slots[i];
+            coefficient = scratch.buffer[bitset];
+            basis       = get_basis_element(bitset);
+
+			current.lhs = new_element_node(0, coefficient, basis);
+			next := new_binary_operator_node(0, null, .Addition, null);
+			current.rhs = next;
+			current      = next;
+
+			i += 1;
+		}
+
+        bitset       = scratch.populated_slots[i];
+        coefficient  = scratch.buffer[bitset];
+        basis        = get_basis_element(bitset);
+
+		current.lhs  = new_element_node(0, coefficient, basis);
+
+        bitset       = scratch.populated_slots[i+1];
+        coefficient  = scratch.buffer[bitset];
+        basis        = get_basis_element(bitset);
+
+		current.rhs = new_element_node(0, coefficient, basis);
+
+        return root;
+	}
 }
 
 // Utility functions for Grassmann products that operate on individual bits.

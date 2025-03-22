@@ -2,6 +2,40 @@
 
 main :: () {
 
+    {
+        Node_Kind :: enum u32 {
+            Error;
+            Identifier;
+            Variable;
+            Element;            // element of an exterior space
+            Unary_Operator;     // prefix/postfix operators
+            Binary_Operator;    // infix operators
+            Intrinsic;
+        }
+
+        Ast_Node :: struct {
+            kind: Node_Kind;
+            node_id: u16;       // indexes position metadata list stored on AST for error reporting for the node.
+        }
+
+        List :: struct {
+            head: *void;
+            tail: *void;
+        }
+
+        // element node is 32 bytes and points directly to the head term, which is what i wanted with the intrusive linked list
+        // it will be more intuitive 
+        Element_Node :: struct {
+            #as using _kind: Ast_Node;
+            list: List;
+            basis: *int;
+        }
+
+        print("Size of element node == %\n", size_of(Element_Node));
+    }
+
+    
+
     encode :: (ident: string) -> u16 {
 
     // Encodes a scalar variable like 'a1' or 'a11' into a 16-bit integer in the following format:

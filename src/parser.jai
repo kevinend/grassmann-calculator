@@ -265,7 +265,7 @@ new_operand :: (parser: *Parser, token: Token) -> *Ast_Node {
     array_add(*position_metadata, token.position);
 
     if token.type == .Number {
-        coefficient := new_term(token.value);
+        coefficient := new_coefficient(token.value);
         basis       := get_basis_element(0);
 
         node = new_element_node(node_id, coefficient, basis);
