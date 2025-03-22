@@ -2,6 +2,7 @@ TODO: 03.21.2025
 -- Not distributing unary operators like negation, left complement and right complement yet!
 -- We aren't distributing scalar multiplication (might need to factor this out!)
 
+-- Do we need to do the semantic pass *after* distribution to make sense our distributing made sense?
 -- Add semantic check that we take scalar multiplication where at least one element is a scalar.
 -- v = a1*e1 is crashing for unrecognized node to try and clone!
 -- Implement addition and subtraction with the lookup stuff
