@@ -233,7 +233,6 @@ begins_number :: (c: u8) -> bool {
 	return is_digit(c);
 }
 
-// TODO: 03.10.2025 -- Use strtof for this.
 compose_token_number :: (lexer: *Lexer) -> token: Token {
 
 	// This procedure can get very complicated trying to handle floats, hex, overflow, etc...

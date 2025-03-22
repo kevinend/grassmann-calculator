@@ -79,7 +79,7 @@ Intrinsic_Node :: struct {
     type: Intrinsic_Type;
 }
 
-new_error_node :: (node_id: u16, message: string) -> *Error_Node { // TODO: Line and character index
+new_error_node :: (node_id: u16, message: string) -> *Error_Node {
 
     node: *Error_Node = talloc(size_of(Error_Node));
     assert(node != null);

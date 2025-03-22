@@ -55,10 +55,19 @@ Complement_Type :: enum {
 
 Scratch :: struct {
 
-    // TODO: Fix this comment before committing! not true anymore!
-    // Scratch space is used to 'flatten' the tree after evaluation of other operations.
-    // Since we know the canonical ordering for the elements we can take a node from the tree, figure out it's 'display' location
-    // then use that same index to sum all other leaves in the tree that point to the same element.
+    /*
+        Scratch space is used to sum the tree nodes after evaluation of all other operations since
+        the same basis element can be spread across different branches and depth of the tree.
+        
+        Each basis element is represented with a unique bitset we can use that as a unique index 
+        into the scratch buffer. So we traverse the tree and 'flatten' each basis element into its location in the buffer
+        and calculate the sum of coefficients for each basis element remaining in the tree at that index. This generates
+        the final coefficient of the basis element.
+
+        Once that's completed the scratch buffer is used to reconstruct the simplified tree back into an AST representation
+        that can be stored as a variable's value as part of an assignment and used in subsequent expressions.
+
+    */
 
     buffer:          [Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS] List(Term);
     populated_slots: [Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS] int;
@@ -275,8 +284,9 @@ sum :: (node: *Ast_Node) {
     }
     else
     if node.kind == .Binary_Operator {
-        // TODO: Assumes only addition! not subtraction here!
         binary_op := cast(*Binary_Operator_Node)node;
+        assert(binary_op.op == .Addition);
+
         sum(binary_op.lhs);
         sum(binary_op.rhs);
     }
@@ -284,7 +294,6 @@ sum :: (node: *Ast_Node) {
     return;
 }
 
-// TODO: This has to go in LONG-TERM storage! You are overwriting this every single time!!
 scratch_to_ast :: () -> *Ast_Node {
 
     bitset:       int   = 0;
