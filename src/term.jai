@@ -22,7 +22,8 @@ Term :: struct {
     #place value; multiples: float;
 
     factors: [] Factor;
-    next: *Term;
+    next:     *Term;
+    previous: *Term;
 }
 
 List :: struct (T: Type) {
@@ -35,16 +36,37 @@ zero_terms :: (list: List(Term)) -> bool {
     return list.head == null && list.tail == null;
 }
 
+get_term_count :: (list: List(Term)) -> int {
+    current := list.head;
+    count   := 0;
+    while current != null {
+        count += 1;
+        current = current.next;
+    }
+
+    return count;
+}
+
 leading_term :: inline (list: List(Term)) -> *Term {
     return list.head;
 }
 
-last_term :: inline (list: List(Term)) -> *Term {
-    return list.tail;
-}
-
 next_term :: inline (term: *Term) -> *Term {
     return term.next;
+}
+
+remove_term :: inline (list: *List(Term), term: *Term) {
+
+    if term == list.head {
+        list.head = list.head.next;
+    }
+    else
+    if term == list.tail {
+        list.tail = list.tail.previous;
+    }
+    else {
+        term.previous.next = term.next;
+    }
 }
 
 append_term :: (list: *List(Term), term: *Term) {
@@ -59,6 +81,7 @@ append_term :: (list: *List(Term), term: *Term) {
         list.tail = term;
     }
     else {
+        term.previous  = list.tail;
         list.tail.next = term;
         list.tail      = term;
     }
@@ -190,39 +213,39 @@ terms_are_equal :: (lterm: *Term, rterm: *Term) -> bool {
 	}
 }
 
-// TODO: Make sure this works with the example below!
 combine_like_terms :: (lhs: List(Term), rhs: List(Term)) -> List(Term) {
 
     // Combines terms of common basis elements into a new list of terms.
     // Example: (3+a1)e1 + (b1+4+a1)e1 = (7+2a1+b1)e1
+    // Input:   (3*e1 + a1*e1) + (b1*e1 + 4*e1 + a1*e1)
+    // @WASTE: There is a lot of unnecessary copying going on here...
 
-    result, count := copy_terms(lhs);
+    Lterms := copy_terms(lhs);
+    Rterms := copy_terms(rhs);
+    
+    count := get_term_count(lhs);
 
-    print("Count == %\n", count);
-
-    if zero_terms(rhs) { return result; }
-
-    Rterm := leading_term(rhs);
-    Lterm := leading_term(result);
-
+    Lterm := leading_term(Lterms);
     for i: 0..count-1 {
+        Rterm := leading_term(Rterms);
         while Rterm != null {
             if terms_are_equal(Lterm, Rterm) {
-                // TODO: technically you don't need to iterate over this RHS again once a match is found but not worrying about it now.
                 Lterm.multiples += Rterm.multiples;
+                remove_term(*Rterms, Rterm);
             }
-            else {
-                // Cannot combine the two terms so add the rterm to the list of terms
-                append_term(*result, Rterm);
-            }
-
             Rterm = next_term(Rterm);
         }
-        
         Lterm = next_term(Lterm);
     }
 
-    return result;
+    // append the remaining elements from the RHS that couldn't be combined with the LHS
+    Rterm := leading_term(Rterms);
+    while Rterm != null { 
+        append_term(*Lterms, Rterm);
+        Rterm = next_term(Rterm);
+    }
+
+    return Lterms;
  }
 
 term_to_string :: (list: List(Term)) -> string {

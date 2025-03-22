@@ -37,6 +37,8 @@
 
 main :: () {
 
+    print("size of term == %\n", size_of(Term));
+
     USER_PROMPT :: "> ";
     success: bool = false;
     quit: bool    = false;
@@ -99,7 +101,7 @@ main :: () {
             continue;
         }
 
-    //    descend(ast.root);
+     descend(ast.root);
 
         resolve_symbols(*ast, *space);
      //   descend(ast.root);

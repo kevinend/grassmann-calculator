@@ -205,21 +205,30 @@ parse_expression :: (parser: *Parser) -> bool, Ast {
                 continue;
             }
 
-            if op.type == .Right_Complement { //TODO: could put this in the else and put the if in there to continue instead of switch parser modes!
-                // Post-fix operator that needs to stay infix or postfix mode since not expecting another prefix operator or operand.
-                apply_operators_with_greater_precedence_then_push(parser, op);
-                continue;
-            }
+            if op.type == {
+                case .Group_End; { 
+                    apply_operators_until_group_start(parser, op); 
+                }
+                case .Right_Complement; {
+                    // Post-fix operator that needs to stay infix or postfix mode since not expecting another prefix operator or operand.
+                    apply_operators_with_greater_precedence_then_push(parser, op);
+                }
+                case .Subtraction; {
+                    // Convert subtraction into negation so that we can just handle addition/sums later in the eval step.
+                    op.type = .Addition;
+                    apply_operators_with_greater_precedence_then_push(parser, op);
 
-            if op.type == .Group_End {
-                apply_operators_until_group_start(parser, op);
-            }
-            else {
-                // Apply operators with higher precedence than our current operator.
-                // Once complete the operator stack is either empty or our operator has a higher precedence then the current head of the stack.
-                // In either case, make our operator the new head of the operators stack.
-                apply_operators_with_greater_precedence_then_push(parser, op);
-                parser.mode = .Prefix;
+                    op.type = .Negation;
+                    apply_operators_with_greater_precedence_then_push(parser, op);
+                    parser.mode = .Prefix;
+                }
+                case; {
+                    // Apply operators with higher precedence than our current operator.
+                    // Once complete the operator stack is either empty or our operator has a higher precedence then the current head of the stack.
+                    // In either case, make our operator the new head of the operators stack.
+                    apply_operators_with_greater_precedence_then_push(parser, op);
+                    parser.mode = .Prefix;
+                }
             }
         }
     }

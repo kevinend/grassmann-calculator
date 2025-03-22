@@ -1,11 +1,16 @@
 TODO: 03.21.2025
+-- Not distributing unary operators like negation, left complement and right complement yet!
+-- We aren't distributing scalar multiplication (might need to factor this out!)
+
 -- Add semantic check that we take scalar multiplication where at least one element is a scalar.
 -- v = a1*e1 is crashing for unrecognized node to try and clone!
 -- Implement addition and subtraction with the lookup stuff
 -- Do the update to the symbol table
 -- Need to get back to commands and how those are handled as well. Always something! (dir and pos()) in particular then we can do the projection formulas!
-?? Term should we just make it a List(Term)? does this simplify things? head/tail/count (append, prepend) instead of a bunch of weird operations
-   We are going to make it a list, make head, tail inline functions and first_term(whatever.coefficient), last_term(whatever.coefficient), functions that are also inline
+
+
+
+
 
 
 Done:
@@ -16,3 +21,6 @@ xxx-- Implement exterior product and regressive products (big day!)
 xxx-- Clean up term-to-string, so messy looking
 xxx-- Implement scalar multiplication so we have a1*e1 + a2*e2
 xxx-- Convert from scratch buffer back into AST for storage in the symbol/variable table
+xxx--Term should we just make it a List(Term)? does this simplify things? head/tail/count (append, prepend) instead of a bunch of weird operations
+   We are going to make it a list, make head, tail inline functions and first_term(whatever.coefficient), last_term(whatever.coefficient), functions that are also inline
+xxx--Replace subtraction with addition and negation

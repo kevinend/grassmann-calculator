@@ -100,11 +100,11 @@ eval :: (node: *Ast_Node) -> *Ast_Node {
         rhs := cast(*Element_Node)binary_op.rhs;
 
         if binary_op.op == {
-            case .Scalar_Multiplication; { result = scalar_multiplication(lhs, rhs);   }
-            case .Exterior_Product;      { result = exterior_product(lhs, rhs);   }
-            case .Regressive_Product;    { result = regressive_product(lhs, rhs); }
+            case .Scalar_Multiplication; { result = scalar_multiplication(lhs, rhs); }
+            case .Exterior_Product;      { result = exterior_product(lhs, rhs);      }
+            case .Regressive_Product;    { result = regressive_product(lhs, rhs);    }
             case; {
-                // operator is sum or difference. defer until later step.
+                // Sums are handled in a separate pass over the tree.
                 result = binary_op;
             }
         }
@@ -259,15 +259,18 @@ sum :: (node: *Ast_Node) {
     if node.kind == .Element {
         element := cast(*Element_Node)node;
 
-        coefficient := scratch.buffer[element.basis.bitset];
-        result      := combine_like_terms(element.coefficient, coefficient);
+        result: List(Term) = ---;
 
+        coefficient := scratch.buffer[element.basis.bitset];
         if zero_terms(coefficient) {
-            // first time updating this slot in the buffer.
+            // first time during the current expression evaluation where we've encountered this basis element in the tree.
+            result = copy_terms(element.coefficient);
             scratch.populated_slots[scratch.populated_count] = element.basis.bitset;
             scratch.populated_count += 1;
         }
-
+        else {
+            result = combine_like_terms(coefficient, element.coefficient);
+        }
         scratch.buffer[element.basis.bitset] = result;
     }
     else
