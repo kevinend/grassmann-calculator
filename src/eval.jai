@@ -40,7 +40,7 @@ simplify :: (ast: Ast) -> Ast {
 
 reset_scratch :: () {
 
-    memset(scratch.buffer.data, 0,  Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS * size_of(Terms));
+    memset(scratch.buffer.data, 0,  Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS * size_of(List(Term)));
     scratch.populated_count = 0;
 
     return;
@@ -60,7 +60,7 @@ Scratch :: struct {
     // Since we know the canonical ordering for the elements we can take a node from the tree, figure out it's 'display' location
     // then use that same index to sum all other leaves in the tree that point to the same element.
 
-    buffer:          [Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS] Terms;
+    buffer:          [Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS] List(Term);
     populated_slots: [Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS] int;
     populated_count: int;
 }
@@ -285,7 +285,7 @@ sum :: (node: *Ast_Node) {
 scratch_to_ast :: () -> *Ast_Node {
 
     bitset:       int   = 0;
-    coefficient:  Terms = ---;
+    coefficient:  List(Term) = ---;
     basis:       *Basis_Element = null;
 
     if scratch.populated_count == 1 {

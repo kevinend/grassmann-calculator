@@ -49,7 +49,7 @@ Variable_Node :: struct {
 Element_Node :: struct {
     #as using _kind: Ast_Node;
 
-	coefficient: Terms;
+	coefficient: List(Term);
 	basis:       *Basis_Element;
 }
 
@@ -113,7 +113,7 @@ new_variable_node :: (node_id: u16, name: string) -> *Variable_Node {
     return node;
 }
 
-new_element_node :: (node_id: u16, coefficient: Terms, basis_element: *Basis_Element) -> *Element_Node {
+new_element_node :: (node_id: u16, coefficient: List(Term), basis_element: *Basis_Element) -> *Element_Node {
 
     node: *Element_Node = talloc(size_of(Element_Node));
     assert(node != null);

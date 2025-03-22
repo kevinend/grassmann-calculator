@@ -25,21 +25,21 @@ Term :: struct {
     next: *Term;
 }
 
-Terms :: struct {
-    // Represents the list of terms that compose the coefficient of a basis element.
-    head: *Term = null;
-    tail: *Term = null;
+List :: struct (T: Type) {
+    // This list is not re-usable! Specific to terms!
+    head: *T = null;
+    tail: *T = null;
 }
 
-zero_terms :: (list: Terms) -> bool {
+zero_terms :: (list: List(Term)) -> bool {
     return list.head == null && list.tail == null;
 }
 
-leading_term :: inline (list: Terms) -> *Term {
+leading_term :: inline (list: List(Term)) -> *Term {
     return list.head;
 }
 
-last_term :: inline (list: Terms) -> *Term {
+last_term :: inline (list: List(Term)) -> *Term {
     return list.tail;
 }
 
@@ -47,7 +47,7 @@ next_term :: inline (term: *Term) -> *Term {
     return term.next;
 }
 
-append_term :: (list: *Terms, term: *Term) {
+append_term :: (list: *List(Term), term: *Term) {
     
     // Adds the new to the end of the list.
 
@@ -66,35 +66,16 @@ append_term :: (list: *Terms, term: *Term) {
     return;
 }
 
-prepend_term :: (list: *Terms, term: *Term) {
-    
-    // Adds the new node to the front of the list.
+new_coefficient :: (value: float) -> List(Term) {
 
-    assert(list != null);
-    assert(term != null);
-
-    if zero_terms(list) {
-        list.head = term;
-        list.tail = term;
-    }
-    else {
-        term.next = list.head;
-        list.head = term;
-    }
-
-    return;
-}
-
-new_coefficient :: (value: float) -> Terms {
-
-    list: Terms;
+    list: List(Term);
     term := new_term(value);
 
     append_term(*list, term);
     return list;
 }
 
-new_term :: (value: float) -> (term: *Term) {
+new_term :: (value: float) -> *Term {
 
     term: *Term = talloc(size_of(Term));
     assert(term != null);
@@ -104,16 +85,16 @@ new_term :: (value: float) -> (term: *Term) {
     return term;
 }
 
-new_coefficient :: (multiples: float, exponent: s16, scalar_variable: string) -> Terms {
+new_coefficient :: (multiples: float, exponent: s16, scalar_variable: string) -> List(Term) {
 
-    list: Terms;
+    list: List(Term);
     term := new_term(multiples, exponent, scalar_variable);
 
     append_term(*list, term);
     return list;
 }
 
-new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> (term: *Term) {
+new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> *Term {
 
     term := cast(*Term)talloc(size_of(Term));
     assert(term != null);
@@ -132,30 +113,29 @@ new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> (term:
     return term;
 }
 
-copy_terms :: (source: Terms) -> Terms, int {
+copy_terms :: (source: List(Term)) -> List(Term), int {
 
     // Copy all the terms from the source list into the destination list.
+    destination: List(Term);
+
     src := leading_term(source);
-
-    destination: Terms;
     append_term(*destination, copy_term(src));
-
-    count := 1;
     
     src = next_term(src);
+    count := 1;
     while src != null {
         append_term(*destination, copy_term(src));
         src = next_term(src);
-        
+
         count += 1;
     }
 
     return destination, count;
 }
 
-scale_coefficient :: (list: Terms, s: float) {
+scale_coefficient :: (terms: List(Term), s: float) {
 
-    c := leading_term(list);
+    c := leading_term(terms);
     while c {
         c.multiples *= s;
         c = c.next;
@@ -164,7 +144,7 @@ scale_coefficient :: (list: Terms, s: float) {
     return;
 }
 
-multiply_coefficients :: (lhs: Terms, rhs: Terms) -> Terms {
+multiply_coefficients :: (lhs: List(Term), rhs: List(Term)) -> List(Term) {
 
     /*
         Distribute scalar (and scalar variables).
@@ -179,7 +159,7 @@ multiply_coefficients :: (lhs: Terms, rhs: Terms) -> Terms {
         Each element always has at *least* one term.
     */
 
-    result: Terms;
+    result: List(Term);
     Lterm := leading_term(lhs);
     Rterm := leading_term(rhs);
 
@@ -210,20 +190,22 @@ terms_are_equal :: (lterm: *Term, rterm: *Term) -> bool {
 	}
 }
 
-// TODO: This doesn't work bro!
-// Like you just combine the first term and got lucky because we onl
-combine_like_terms :: (lhs: Terms, rhs: Terms) -> Terms {
+// TODO: Make sure this works with the example below!
+combine_like_terms :: (lhs: List(Term), rhs: List(Term)) -> List(Term) {
 
     // Combines terms of common basis elements into a new list of terms.
     // Example: (3+a1)e1 + (b1+4+a1)e1 = (7+2a1+b1)e1
 
     result, count := copy_terms(lhs);
-    Lterm := leading_term(result);
+
+    print("Count == %\n", count);
 
     if zero_terms(rhs) { return result; }
 
     Rterm := leading_term(rhs);
-    for i: 0..count-1 {         // iterate over count otherwise when you add to the result list you will keep iterating over the newly added nodes!
+    Lterm := leading_term(result);
+
+    for i: 0..count-1 {
         while Rterm != null {
             if terms_are_equal(Lterm, Rterm) {
                 // TODO: technically you don't need to iterate over this RHS again once a match is found but not worrying about it now.
@@ -234,15 +216,16 @@ combine_like_terms :: (lhs: Terms, rhs: Terms) -> Terms {
                 append_term(*result, Rterm);
             }
 
-            next_term(Rterm);
+            Rterm = next_term(Rterm);
         }
-        next_term(Lterm);
+        
+        Lterm = next_term(Lterm);
     }
 
     return result;
  }
 
-term_to_string :: (list: Terms) -> string {
+term_to_string :: (list: List(Term)) -> string {
 
     term_to_string_helper :: (term: *Term, builder: *String_Builder) {
         if term.factors.count == 0 {
