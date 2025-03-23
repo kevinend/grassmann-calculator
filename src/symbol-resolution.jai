@@ -31,7 +31,7 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
 
         _1_element := matches_1_element(ident.name);
         if _1_element { 
-            coefficient := new_term(1);
+            coefficient := new_coefficient(1);
             element     := new_element_node(ident.node_id, coefficient, _1_element);
 
             return element;
@@ -43,7 +43,7 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
         if match {
             valid := valid_scalar_variable(ident.name);
             if valid {
-                coefficient := new_term(multiples = 1, exponent = 1, scalar_variable = ident.name );
+                coefficient := new_coefficient(multiples = 1, exponent = 1, scalar_variable = ident.name );
                 basis       := get_basis_element(0);
                 element     := new_element_node(ident.node_id, coefficient, basis);
 

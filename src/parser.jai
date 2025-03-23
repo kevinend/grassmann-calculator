@@ -98,10 +98,10 @@ descend :: (node: *Ast_Node, indent: int = 0) {
         print(
 			"(%) Element (Coefficient=%, Grade=%, Symbol=%, Bits=%)\n"
             ,element.node_id
-            ,coefficient_to_string(element.coefficient)
+            ,term_to_string(element.coefficient)
             ,element.basis.grade
             ,element.basis.symbol
-            ,element.basis.bits
+            ,element.basis.bitset
 		);
     }
     else
@@ -205,21 +205,30 @@ parse_expression :: (parser: *Parser) -> bool, Ast {
                 continue;
             }
 
-            if op.type == .Right_Complement { //TODO: could put this in the else and put the if in there to continue instead of switch parser modes!
-                // Post-fix operator that needs to stay infix or postfix mode since not expecting another prefix operator or operand.
-                apply_operators_with_greater_precedence_then_push(parser, op);
-                continue;
-            }
+            if op.type == {
+                case .Group_End; { 
+                    apply_operators_until_group_start(parser, op); 
+                }
+                case .Right_Complement; {
+                    // Post-fix operator that needs to stay infix or postfix mode since not expecting another prefix operator or operand.
+                    apply_operators_with_greater_precedence_then_push(parser, op);
+                }
+                case .Subtraction; {
+                    // Convert subtraction into negation so that we can just handle addition/sums later in the eval step.
+                    op.type = .Addition;
+                    apply_operators_with_greater_precedence_then_push(parser, op);
 
-            if op.type == .Group_End {
-                apply_operators_until_group_start(parser, op);
-            }
-            else {
-                // Apply operators with higher precedence than our current operator.
-                // Once complete the operator stack is either empty or our operator has a higher precedence then the current head of the stack.
-                // In either case, make our operator the new head of the operators stack.
-                apply_operators_with_greater_precedence_then_push(parser, op);
-                parser.mode = .Prefix;
+                    op.type = .Negation;
+                    apply_operators_with_greater_precedence_then_push(parser, op);
+                    parser.mode = .Prefix;
+                }
+                case; {
+                    // Apply operators with higher precedence than our current operator.
+                    // Once complete the operator stack is either empty or our operator has a higher precedence then the current head of the stack.
+                    // In either case, make our operator the new head of the operators stack.
+                    apply_operators_with_greater_precedence_then_push(parser, op);
+                    parser.mode = .Prefix;
+                }
             }
         }
     }
@@ -265,7 +274,7 @@ new_operand :: (parser: *Parser, token: Token) -> *Ast_Node {
     array_add(*position_metadata, token.position);
 
     if token.type == .Number {
-        coefficient := new_term(token.value);
+        coefficient := new_coefficient(token.value);
         basis       := get_basis_element(0);
 
         node = new_element_node(node_id, coefficient, basis);

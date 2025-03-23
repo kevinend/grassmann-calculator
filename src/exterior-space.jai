@@ -41,25 +41,8 @@
 Basis_Element :: struct {
     // Represents any basis element from grade [0,n] in the currently declared space.
     grade:  int;
-    bits:   int;
+    bitset: int;
     symbol: string;
-}
-
-Factor :: struct {
-    exponent: s16;
-    scalar_variable: u16;
-}
-
-Term :: struct {
-    // Represents a single number or a list of scalar-variable factors to represent terms such as "a1" or a product like "a1b2c3"
-    // This is like a tagged union without the tag. A number is implicit and occurs when the count of factors is zero.
-
-    value: float;
-    #place value; multiples: float;
-
-    num_factors: u32;
-    factors: [] Factor;
-    next: *Term;
 }
 
 M_Element :: struct {
@@ -76,8 +59,8 @@ Exterior_Space :: struct {
     dimension: int;
     n_element: *Basis_Element;
 
-    basis_elements:         [MAX_NUMBER_OF_BASIS_ELEMENTS]  Basis_Element;
-    bits_to_basis_elements: [MAX_NUMBER_OF_BASIS_ELEMENTS] *Basis_Element;
+    basis_elements:           [MAX_NUMBER_OF_BASIS_ELEMENTS]  Basis_Element;
+    bitset_to_basis_elements: [MAX_NUMBER_OF_BASIS_ELEMENTS] *Basis_Element;
 
     scalar_variable_prefix_characters: string;
     user_variables: Table(string, M_Element);
@@ -94,12 +77,12 @@ update_exterior_space :: (dimension: int, _1_element_symbols: [] string, scalar_
 
     num_basis_elements := power(2, dimension);
 
-    space.basis_elements[0] = Basis_Element.{ grade = 0, bits = 0, symbol = "1" };
+    space.basis_elements[0] = Basis_Element.{ grade = 0, bitset = 0, symbol = "1" };
     count: int = 1;
     for j: 1..dimension {
         generate_basis_elements(
              i 		 = 0
-            ,element = Basis_Element.{ grade = 0, bits = 0 }
+            ,element = Basis_Element.{ grade = 0, bitset = 0 }
             ,n       = dimension
             ,k	     = j
             ,c       = *count
@@ -110,13 +93,13 @@ update_exterior_space :: (dimension: int, _1_element_symbols: [] string, scalar_
 
     for i: 1..num_basis_elements-1 {
         element        := *space.basis_elements[i];
-        element.symbol =   generate_basis_symbol(element.bits, element.grade, _1_element_symbols);
+        element.symbol =   generate_basis_symbol(element.bitset, element.grade, _1_element_symbols);
     }
 
     // update the mapping table from an element's bits to the basis element
     for i: 0..num_basis_elements-1 {
-        index := space.basis_elements[i].bits;
-        space.bits_to_basis_elements[index] = *space.basis_elements[i];
+        index := space.basis_elements[i].bitset;
+        space.bitset_to_basis_elements[index] = *space.basis_elements[i]; 
     }
 
     space.n_element = *space.basis_elements[num_basis_elements-1];
@@ -125,112 +108,12 @@ update_exterior_space :: (dimension: int, _1_element_symbols: [] string, scalar_
     return;
 }
 
-get_basis_element :: (bits: int) -> *Basis_Element {
+get_basis_element :: (bitset: int) -> *Basis_Element {
 
-    basis_element := space.bits_to_basis_elements[bits];
+    basis_element := space.bitset_to_basis_elements[bitset];
     return basis_element;
 }
-
-new_term :: (value: float) -> (term: *Term) {
-
-    term: *Term = talloc(size_of(Term));
-    assert(term != null);
-    memset(term, 0, size_of(Term));
-
-    term.value = value;
-    return term;
-}
-
-new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> (term: *Term) {
-
-    term := cast(*Term)talloc(size_of(Term));
-    assert(term != null);
-    memset(term, 0, size_of(Term));
-
-    term.factors.data  = talloc(size_of(Factor));
-    term.factors.count = 1;
-    assert(term.factors.data != null);
-
-    term.factors[0].exponent        = exponent;
-    term.factors[0].scalar_variable = encode(scalar_variable);
-    term.num_factors = 1;
-
-    term.multiples = multiples;
-    term.factors.count = 1;
-
-    return term;
-}
-
-
-copy_term :: (term: *Term) -> *Term {
-
-    assert(term != null);
-
-    src: *Term = term;
-    dst: *Term = talloc(size_of(Term));
-    assert(dst != null);
-
-    memcpy(dst, src, size_of(Term));
-    if src.num_factors > 0 {
-        dst.factors.data  = talloc(src.factors.count * size_of(Factor));
-        dst.factors.count = src.factors.count;
-        assert(dst.factors.data != null);
-
-        memcpy(dst.factors.data, src.factors.data, src.num_factors);
-    }
-
-    src = src.next;
-    while src != null {
-        dst.next = copy_term(src);
-        dst = dst.next;
-        src = src.next;
-    }
-
-    return dst;
-}
-
-operator == :: (lterm: Term, rterm: Term) -> bool {
-    
-	// Terms are equal when the following conditions are true.
-	//  1. Each term contains the same number of factors (even if the count is zero).
-	//  2. Each term contains the same factors in the same order.
-	//  3. Each factor in the term is raised to the same power.
-	if lterm.factors.count == rterm.factors.count {
-		count := lterm.factors.count;
-
-		return memcmp(lterm.factors.data, rterm.factors.data, size_of(Factor) * count) == 0;
-	}
-	else {
-		return false;
-	}
-}
-
-
-/* 
-STUB:
-combine_like_terms :: (lhs: *Term, rhs: *Term) -> *Term {
  
-	// Example:
-	// Input  = (3 + a1) + (b1 + 4 + a1)
-	// Output = (7 + 2a1 + b1)
-	Copy the lhs terms into a new list. Keep track of the number of terms.
-	Iterate over each term in the copy.
-	  -- Iterate by index from previous step
-	  -- If you iterate while .next != null then when you append to your copy from the rhs you will unnecessarily iterate that element over the rest of the rhs)
-	  -- Double-check ^ might not be true, too tired.
-	  Iterate over each term in the rhs.
-		if lterm == rterm {
-			lterm-copy.multiples = lterm.multiples + rterm.multiples;
-			-- can keep track of the previous while iterating rhs and 'remove' this node from the rhs so it isn't constantly checked
-		}
-		else {
-			-- can't combine the two terms so add the rterm to the list of lterms
-		}
- }
- 
-*/
- 
-
 matches_1_element :: (ident: string) -> *Basis_Element {
 
     element: *Basis_Element = null;
@@ -267,149 +150,6 @@ valid_scalar_variable :: (ident: string) -> bool {
 
     // Scalar variables are identifiers that have a leading character in the 'allowed-list' for scalar variables and be followed by at *most* two digits.
     return ident.count <= 3;
-}
-
-coefficient_to_string :: (term: *Term) -> string {
-
-    builder: String_Builder;
-
-    while term.next != null {
-        if term.factors.count == 0 {
-            value := tprint("%", term.value);
-            append(*builder, value);
-        }
-        else {
-            // scalar variable or product of scalar variables
-            if term.multiples != 1 {
-                multiples := tprint("%", term.multiples);
-                append(*builder, multiples);
-            }
-
-            for i: 0..term.factors.count-1 {
-                factor := term.factors[i];
-                scalar_variable := decode(factor.scalar_variable);
-                append(*builder, scalar_variable);
-
-                if factor.exponent > 1 {
-                    exponent := tprint("%", factor.exponent);
-                    append(*builder,"^");
-                    append(*builder, exponent);
-                }
-            }
-        }
-
-        append(*builder, " + " );
-    }
-
-    // this is redundant but add the last term which is copy and pasting the code in the while loop above.
-    if term.factors.count == 0 {
-        value := tprint("%", term.value);
-        append(*builder, value);
-    }
-    else {
-        // scalar variable or product of scalar variables
-        if term.multiples != 1 {
-            multiples := tprint("%", term.multiples);
-            append(*builder, multiples);
-        }
-
-        for i: 0..term.factors.count-1 {
-            factor := term.factors[i];
-            scalar_variable := decode(factor.scalar_variable);
-            append(*builder, scalar_variable);
-
-            if factor.exponent > 1 {
-                exponent := tprint("%", factor.exponent);
-                append(*builder,"^");
-                append(*builder, exponent);
-            }
-        }
-    }
-
-    return builder_to_string(*builder);
-}
-
-lookup_variable :: (ident: string) -> bool, M_Element {
-
-    variable, found := table_find(*space.user_variables, ident);
-    return found, variable;
-}
-
-#scope_file
-
-power :: (a: int, b: int) -> int {
-
-    // Implements the basic arithment expression: c = a^b
-    c: int = 1;
-    for i: 0..b-1 {
-        c *= a;
-    }
-    return c;
-}
-
-choose :: (n: int, k: int) -> (value: int) {
-    // example: choose(4,2) == (4*3)/(2*1) == 6
-    if k == 0 return 1;
-    return (n * choose(n-1, k-1)) / k;
-}
-
-generate_basis_elements :: (
-     i: int
-    ,element: Basis_Element
-    ,n: int
-    ,k: int
-    ,c: *int
-) {
-
-    // This is a modified version of n choose k, where for each element in our 1-elements we generate the combinations
-    // with the element and the combinations without the element. The caller invokes this for k = 1..N so we end up
-    // with each basis element in our collection in order of grade. Also, the 1-elements themselves are NOT supplied
-    // as part of the call. Each 1-element is a bit field (1 << i) so when we bump i by one we are effectively dealing with
-    // the next 1-element.
-
-    if element.grade == k {
-        // found a basis element of grade k, add to our collection of basis elements
-        space.basis_elements[c.*] = element;
-        c.* += 1;
-        return;
-    }
-
-    if i >= n {
-        // reached the end of the 1-elements without generating an element of grade k
-        return;
-    }
-
-    // include the current one element (represented as 2^i so just a bit-shift) and find the basis-elements with this 1-element and do the same excluding this current 1-element
-    include_first := Basis_Element.{ grade = element.grade + 1, bits = element.bits | (1 << i) };
-    exclude_first := Basis_Element.{ grade = element.grade    , bits = element.bits };
-
-    generate_basis_elements(i+1, include_first, n, k, c);
-    generate_basis_elements(i+1, exclude_first, n, k, c);
-}
-
-generate_basis_symbol :: (bits: int, grade: int, _1_element_symbols: [] string) -> string {
-
-    builder: String_Builder;
-
-    wedge := "^";
-    i 	  := 0;
-    n 	  := 0;
-
-    while true {
-        if bits & (1 << i) {
-            if n == grade-1 { break; }
-            else {
-                append(*builder, _1_element_symbols[i]);
-                append(*builder, wedge);
-                n += 1;
-            }
-        }
-
-        i += 1;
-    }
-    append(*builder, _1_element_symbols[i]);
-
-    return builder_to_string(*builder);
 }
 
 /*
@@ -488,4 +228,87 @@ decode :: (value: u16) -> string {
     }
 
     return builder_to_string(*decoder);
+}
+
+lookup_variable :: (ident: string) -> bool, M_Element {
+
+    variable, found := table_find(*space.user_variables, ident);
+    return found, variable;
+}
+
+#scope_file
+
+power :: (a: int, b: int) -> int {
+
+    // Implements the basic arithment expression: c = a^b
+    c: int = 1;
+    for i: 0..b-1 {
+        c *= a;
+    }
+    return c;
+}
+
+choose :: (n: int, k: int) -> (value: int) {
+    // example: choose(4,2) == (4*3)/(2*1) == 6
+    if k == 0 return 1;
+    return (n * choose(n-1, k-1)) / k;
+}
+
+generate_basis_elements :: (
+     i: int
+    ,element: Basis_Element
+    ,n: int
+    ,k: int
+    ,c: *int
+) {
+
+    // This is a modified version of n choose k, where for each element in our 1-elements we generate the combinations
+    // with the element and the combinations without the element. The caller invokes this for k = 1..N so we end up
+    // with each basis element in our collection in order of grade. Also, the 1-elements themselves are NOT supplied
+    // as part of the call. Each 1-element is a bit field (1 << i) so when we bump i by one we are effectively dealing with
+    // the next 1-element.
+
+    if element.grade == k {
+        // found a basis element of grade k, add to our collection of basis elements
+        space.basis_elements[c.*] = element;
+        c.* += 1;
+        return;
+    }
+
+    if i >= n {
+        // reached the end of the 1-elements without generating an element of grade k
+        return;
+    }
+
+    // include the current one element (represented as 2^i so just a bit-shift) and find the basis-elements with this 1-element and do the same excluding this current 1-element
+    include_first := Basis_Element.{ grade = element.grade + 1, bitset = element.bitset | (1 << i) };
+    exclude_first := Basis_Element.{ grade = element.grade    , bitset = element.bitset };
+
+    generate_basis_elements(i+1, include_first, n, k, c);
+    generate_basis_elements(i+1, exclude_first, n, k, c);
+}
+
+generate_basis_symbol :: (bits: int, grade: int, _1_element_symbols: [] string) -> string {
+
+    builder: String_Builder;
+
+    wedge := "^";
+    i 	  := 0;
+    n 	  := 0;
+
+    while true {
+        if bits & (1 << i) {
+            if n == grade-1 { break; }
+            else {
+                append(*builder, _1_element_symbols[i]);
+                append(*builder, wedge);
+                n += 1;
+            }
+        }
+
+        i += 1;
+    }
+    append(*builder, _1_element_symbols[i]);
+
+    return builder_to_string(*builder);
 }

@@ -1,0 +1,30 @@
+TODO: 03.21.2025
+
+Bugs:
+-- Assignment example: v = a1*e1 is crashing during copy_node procedure.
+
+Features/Updates:
+-- Automated testing! Evaluation can return a result, need a way to make sure my changes aren't breaking existing functionality.
+-- Update the symbol table for AST's containing an assignment node
+-- Semantic pass should occur *after* distribution.
+   Symbol resolution and expansion/distribution are AST transformations and we should do the semantic check after.
+   This goes along with the semantic check that scalar multiplication has at least one argument that is a scalar.
+   This is easier to do when the tree is fully expanded.
+-- How to handle intrinsics such as dir() and pos() within the evaluation step.
+-- Lexer:236 compose_token_number, we should use strtof or maybe Jai has a wrapper for it? 
+-- Eval:297 scratch_to_ast, if it is for variable assignment this needs to go into the heap and not the temp allocator!
+-- Ast:Line82  Add line and character index to error messages from the semantic pass in the error node. Make it more consistent with lexer and parser errors.
+
+Done:
+xxx--Rename 'bits' to bitset for basis elements.
+xxx--Reorder the build files to match vscode (alphabetical order).
+xxx--Move Term type into its own file along with its helpers.
+xxx--Introduce List(Term) for Basis element's coefficient. Instrusive linked list head node makes procedure signatures confusing.
+xxx--Implement exterior product and regressive products during eval step.
+xxx--Clean up term_to_string procedure; unnecessary copy-paste from before to get a working example.
+xxx--Implement scalar multiplication so that 3*a1*e1 + 4*a1*e1 == (7a1)e1
+xxx--Replace subtraction with addition and negation within the parser so we only have to handle addition in later eval steps.
+xxx--Distribute scalar multiplication over sums (additional feature/update above that the semantic pass should occur *after* this transformation).
+xxx--Distribute unary operators like negation, left complement and right complement over sums.
+xxx--Implement addition with the scratch buffer as a 'flattening' structure.
+xxx--Implement procedure to convert from scratch buffer back into AST for storage in the symbol/variable table.

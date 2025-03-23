@@ -49,7 +49,7 @@ Variable_Node :: struct {
 Element_Node :: struct {
     #as using _kind: Ast_Node;
 
-	coefficient: *Term;
+	coefficient: List(Term);
 	basis:       *Basis_Element;
 }
 
@@ -79,7 +79,7 @@ Intrinsic_Node :: struct {
     type: Intrinsic_Type;
 }
 
-new_error_node :: (node_id: u16, message: string) -> *Ast_Node { // TODO: Line and character index
+new_error_node :: (node_id: u16, message: string) -> *Error_Node {
 
     node: *Error_Node = talloc(size_of(Error_Node));
     assert(node != null);
@@ -91,7 +91,7 @@ new_error_node :: (node_id: u16, message: string) -> *Ast_Node { // TODO: Line a
     return node;
 }
 
-new_identifier_node :: (node_id: u16, name: string) -> *Ast_Node {
+new_identifier_node :: (node_id: u16, name: string) -> *Identifier_Node {
 
     node: *Identifier_Node = talloc(size_of(Identifier_Node));
     assert(node != null);
@@ -102,7 +102,7 @@ new_identifier_node :: (node_id: u16, name: string) -> *Ast_Node {
     return node;
 }
 
-new_variable_node :: (node_id: u16, name: string) -> *Ast_Node {
+new_variable_node :: (node_id: u16, name: string) -> *Variable_Node {
 
     node: *Variable_Node = talloc(size_of(Variable_Node));
     assert(node != null);
@@ -113,7 +113,7 @@ new_variable_node :: (node_id: u16, name: string) -> *Ast_Node {
     return node;
 }
 
-new_element_node :: (node_id: u16, coefficient: *Term, basis_element: *Basis_Element) -> *Ast_Node {
+new_element_node :: (node_id: u16, coefficient: List(Term), basis_element: *Basis_Element) -> *Element_Node {
 
     node: *Element_Node = talloc(size_of(Element_Node));
     assert(node != null);
@@ -126,7 +126,7 @@ new_element_node :: (node_id: u16, coefficient: *Term, basis_element: *Basis_Ele
     return node;
 }
 
-new_unary_operator_node :: (node_id: u16, op: Operator_Type, rhs: *Ast_Node) -> *Ast_Node {
+new_unary_operator_node :: (node_id: u16, op: Operator_Type, rhs: *Ast_Node) -> *Unary_Operator_Node {
 
     node: *Unary_Operator_Node = talloc(size_of(Unary_Operator_Node));
     if !node { print( "Error!\n" ); }
@@ -139,7 +139,7 @@ new_unary_operator_node :: (node_id: u16, op: Operator_Type, rhs: *Ast_Node) -> 
     return node;
 }
 
-new_binary_operator_node :: (node_id: u16, lhs: *Ast_Node, op: Operator_Type, rhs: *Ast_Node) -> *Ast_Node {
+new_binary_operator_node :: (node_id: u16, lhs: *Ast_Node, op: Operator_Type, rhs: *Ast_Node) -> *Binary_Operator_Node {
 
     node: *Binary_Operator_Node = talloc(size_of(Binary_Operator_Node));
     if !node { print("Error!\n" );}
@@ -153,7 +153,7 @@ new_binary_operator_node :: (node_id: u16, lhs: *Ast_Node, op: Operator_Type, rh
     return node;
 }
 
-new_intrinsic_node :: (node_id: u16, type: Intrinsic_Type) -> *Ast_Node {
+new_intrinsic_node :: (node_id: u16, type: Intrinsic_Type) -> *Intrinsic_Node {
 
     node: *Intrinsic_Node = talloc(size_of(Intrinsic_Node));
     if !node { print("Error!\n"); }
@@ -170,7 +170,7 @@ copy_node :: (node: *Ast_Node) -> *Ast_Node {
 	dst: *Ast_Node = null;
 	if node.kind == .Element {
 		src         := cast(*Element_Node)node;
-        coefficient := copy_term(src.coefficient);
+        coefficient := copy_terms(src.coefficient);
         basis       := src.basis;
 
 		dst = new_element_node(src.node_id, coefficient, basis);

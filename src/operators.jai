@@ -6,7 +6,7 @@ Operator_Type :: enum u8 {
     Addition;
     Negation;
     Subtraction;
-    Scalar_Multiplication; // TODO: Should this be removed and replaced with a PIPE?
+    Scalar_Multiplication;
     Scalar_Division;
     Scalar_Exponentiation;
     Exterior_Product;

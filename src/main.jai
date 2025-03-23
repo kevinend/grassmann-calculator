@@ -2,11 +2,11 @@
 
 /*
     High-Level steps of the application
-        // Lexer             --> tokens
-        // Parser            --> AST with operators, keywords and symbols
+        // Lexer             --> Generate tokens.
+        // Parser            --> AST with operators, keywords and identifiers.
         // Symbol Resolution --> Pass over the tree and replace all identifiers with their stored AST values.
+        // Expand            --> Distribute products over addition and subtraction.
         // Semantic Pass     --> Pass over the tree again and make sure that scalar symbols aren't being assigned values, that scalars are only used in scalar multiplication, etc.
-        // Expand            --> Distribute grassmann products over addition and subtraction
         // Simplify          --> Evaluate the expression, generate the K-Element represented by the user, store if an assignment
         // Display           --> Convert the k-element to a string and display that to the end user.
 
@@ -17,22 +17,6 @@
         A,B,C     - bivectors  (4 there are 6 of these basis) A1*e1|e2 + A2*e2|e3, A B C D E F E = E1e
         K,L,M,N   - line
         P,Q,R,S   - plane
-
-        what you want to happen is that you enter e4 and end up with an undeclared identifier. Not a scalar symbol
-        since it isn't defined on the basis set that you are dealing with. So you take those values and map them.
-        It isn't ideal but that would work for the next time, how you do that is that it needs to fail to resolve
-        as a scalar symbol. So then to match you have to be that character followed by at *most* 3 digits.
-
-        p = e0 + p1*e1 + p2*e2 + p3*e3
-
-        I think we could do that instead and have it work that way.
-        So you declare a set of symbols and then you check if you make that list
-
-        4  6  4
-        1  2  3
-
-        Then scalar symbols are P1 P2 P3 P4, any of the alphanumeric characters + an index at the end
-        Which is a [u8|index] which is another u8 or a u16
 */
 
 main :: () {
@@ -99,10 +83,10 @@ main :: () {
             continue;
         }
 
-    //    descend(ast.root);
+        descend(ast.root);
 
         resolve_symbols(*ast, *space);
-  //      descend(ast.root);
+        descend(ast.root);
 
         pass := check_semantics(*ast);
         if !pass {
@@ -115,7 +99,9 @@ main :: () {
 
         expanded_ast = expand(ast);
         descend(expanded_ast.root);
-        
+
+        simplified_ast = simplify(expanded_ast);
+        descend(simplified_ast.root);
     }
 }
 
