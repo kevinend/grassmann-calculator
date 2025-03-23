@@ -1,27 +1,38 @@
 /*
     Evaluation/simplification of the AST.
     Occurs in two steps:
-    1. Evaluate all "local" operations. This is everything except for addition and subtraction
-    2. Evaluate addition and subtraction since this needs to occur across nodes in the tree.
+    1. Evaluate all "local" operations.
+    2. Evaluate addition/summation.
 
-    Evaluation has to handle the anticommutativity of the exterior and regressive products.
-    The visual below is important to keep in mind otherwise the code will seem backwards.
+    Products and unary operators are 'local' operations since while traversing the tree you can evaluate their children
+    then evaluate the current product. Additional tree traversal only occurs 'locally' from that operator node.
 
-    In a product between two arguments the right-most element of the left-hand side (LHS) is *next to* the left-most
-    element of the right-hand side (RHS). In code this is not the case and needs accounted for otherwise calculating
-    anticommutativity between elements due to 'swaps' will not be correct.
+    Summation has to occur *across* branches of the tree since evaluation of products can generate the same basis element
+    in different branches or depths of the tree.
 
-    In the LHS, the right-most basis element factor is stored in the MSB.
-    In the RHS, the left-most  basis element factor is stored in the LSB.
+    Some products are anticommutative (exterior and regressive).
+    Review the visual below to ensure you understand the 'written'-order versus 'memory'-order of basis elements in each product.
 
-		LHS              RHS
-	(e0^e1^e2^e3) 	v 	(e0^e1^e2^e3)
-               ^      	 ^
-		       |      	 |
-    \/---------|      	 |--------\/
-	e3 e2 e1 e0		 	 e3 e2 e1 e0
-	^                             ^
-    MSB of LHS                    LSB of RHS
+    *Note lhs means left-hand side and rhs means right-hand side.
+
+    When written on paper the product e1 ^ (e0^e2) is comprised of a lhs e1, and rhs e0^e2.
+    If we want to write the product as -e0^e1^e2 we swap e1 and e0 and negate the product. 
+    Notice that the *right*-most element of the lhs is next to the *left*-most element of the rhs.
+
+    The following is true for basis elements in memory given the current implementation of using a bit-per 
+    1-element and basis elements being constructed from OR'ing those bits together.
+
+    In the LHS, the right-most basis element factor (when written) is stored in the most-significant bit.
+    In the RHS, the left-most  basis element factor (when written) is stored in the least-significant bit.
+
+                    LHS              RHS
+                (e0^e1^e2^e3) 	v 	(e0^e1^e2^e3)
+                           ^      	 ^
+                           |      	 |
+                \/---------|      	 |--------\/
+                e3 e2 e1 e0		 	 e3 e2 e1 e0
+                ^                             ^
+                MSB of LHS                    LSB of RHS
 */
 
 #scope_export
