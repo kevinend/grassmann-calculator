@@ -19,8 +19,8 @@
     If we want to write the product as -e0^e1^e2 we swap e1 and e0 and negate the product. 
     Notice that the *right*-most element of the lhs is next to the *left*-most element of the rhs.
 
-    The following is true for basis elements in memory given the current implementation of using a bit-per 
-    1-element and basis elements being constructed from OR'ing those bits together.
+    The above doesn't hold from our current implmentation of basis elements being the OR of single bits representing individual basis elements.
+    Below is how these elements are juxtaposed against one another in memory.
 
     In the LHS, the right-most basis element factor (when written) is stored in the most-significant bit.
     In the RHS, the left-most  basis element factor (when written) is stored in the least-significant bit.
