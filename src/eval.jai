@@ -1,8 +1,7 @@
 /*
-    Evaluation/simplification of the AST.
-    Occurs in two steps:
-    1. Evaluate all "local" operations.
-    2. Evaluate addition/summation.
+    Evaluation/simplification of the AST occurs in two steps.
+        1. Evaluate all "local" operations.
+        2. Evaluate addition/summation.
 
     Products and unary operators are 'local' operations since while traversing the tree you can evaluate their children
     then evaluate the current product. Additional tree traversal only occurs 'locally' from that operator node.
