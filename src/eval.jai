@@ -3,8 +3,8 @@
         1. Evaluate all "local" operations.
         2. Evaluate addition/summation.
 
-    Products and unary operators are 'local' operations since while traversing the tree you can evaluate their children
-    then evaluate the current product. Additional tree traversal only occurs 'locally' from that operator node.
+    Products and unary operators are 'local' operations. While traversing the tree you can evaluate their children
+    then evaluate the current product operation. Additional tree traversal only occurs 'locally' from that operator node.
 
     Summation has to occur *across* branches of the tree since evaluation of products can generate the same basis element
     in different branches or depths of the tree.
