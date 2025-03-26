@@ -22,38 +22,31 @@
 main :: () {
 
     USER_PROMPT :: "> ";
-    success: bool = false;
-    quit: bool    = false;
-
+    input: string;
+    
     lexer:  Lexer;
     tokens: [] Token;
 
     parser: Parser;
-
-    ast:            Ast;
-    expanded_ast:   Ast;
-    simplified_ast: Ast;
+    ast: Ast;
 
     default_dimension: int = 4;
     default_1_elements: [] string = .["e0","e1","e2","e3"];
     default_scalar_variable_prefix_characters: string = "abcdnpqrsuvABCKLMNPQRS";
     
     // Preconditions
-    update_exterior_space(
-         default_dimension
-        ,default_1_elements
-        ,default_scalar_variable_prefix_characters
-    );
+    update_exterior_space(default_dimension, default_1_elements, default_scalar_variable_prefix_characters);
     
     initialize_operator_tables();
 
-	input: string;
-	while !quit {
+    success: bool = false;
+    quit:    bool = false;
+    while !quit {
 
         reset_temporary_storage();
         
-		print( "%", USER_PROMPT );
-		success, input = read_line();
+        print( "%", USER_PROMPT );
+        success, input = read_line();
         if !success {
             flush_input();
             continue;
@@ -72,9 +65,9 @@ main :: () {
         success, tokens = generate_tokens(*lexer, input);
         if !success {
             error := get_lexer_error(*lexer);
-			print(error);
-			continue;
-		}
+            print(error);
+            continue;
+        }
 
         success, ast = parse(*parser, tokens, input);
         if !success {
@@ -85,7 +78,28 @@ main :: () {
 
         descend(ast.root);
 
+        // Once the initial AST is generated we want to apply a set of transformations on
+        // the tree to make later processing simpler.
+
+        // Flatten/Associate
+        // Resolve -- they should be in the flattened state already
+        //  + 
+        //   e1e2 e2e3
+        // Then we expand/distribute e1 ^ v
+        
+                   
+
+        // The initial AST generated from the parser can be a deep hiearch
+
+        // Associate operations and distribution
+        // Then we get the best of both worlds. We waste some memory building the original tree but then we 
+
+        // Resolving symbols and expanding the tree represent tree transformations. All tree transformations should occur
+        // prior to validating the semantics or evaluating the tree.
         resolve_symbols(*ast, *space);
+        descend(ast.root);
+
+        ast = expand(ast);
         descend(ast.root);
 
         pass := check_semantics(*ast);
@@ -93,15 +107,8 @@ main :: () {
             continue;
         }
 
-        // Expand and simplify return new instances of the entire syntax tree.
-        // Cloning the nodes wastes memory but we are using the linear allocator so new nodes will be located near one another
-        // so maybe not a huge problem? 03.18.2025
-
-        expanded_ast = expand(ast);
-        descend(expanded_ast.root);
-
-        simplified_ast = simplify(expanded_ast);
-        descend(simplified_ast.root);
+        ast = simplify(ast);
+        descend(ast.root);
     }
 }
 

@@ -50,7 +50,7 @@ simplify :: (ast: Ast) -> Ast {
 
 reset_scratch :: () {
 
-    memset(scratch.buffer.data, 0,  Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS * size_of(List(Term)));
+    memset(scratch.buffer.data, 0,  Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS * size_of(List(*Term)));
     scratch.populated_count = 0;
 
     return;
@@ -79,7 +79,7 @@ Scratch :: struct {
 
     */
 
-    buffer:          [Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS] List(Term);
+    buffer:          [Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS] List(*Term);
     populated_slots: [Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS] int;
     populated_count: int;
 }
@@ -138,7 +138,7 @@ negate :: (element: *Element_Node) -> *Element_Node {
 
     assert(element != null);
     
-    scale_coefficient(element.coefficient, -1);
+    scale_coefficient(*element.coefficient, -1);
     result := new_element_node(element.node_id, element.coefficient, element.basis);
     return result;
 }
@@ -163,7 +163,7 @@ complement :: (type: Complement_Type, k: *Element_Node) -> *Element_Node {
     }
 
     if anticommute == true {
-        scale_coefficient(n_k.coefficient, -1);
+        scale_coefficient(*n_k.coefficient, -1);
     }
 
     return n_k;
@@ -200,7 +200,7 @@ exterior_product :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_Node {
 
         anticommute := does_product_anticommute(lhs.basis.bitset, rhs.basis.bitset);
         if anticommute {
-            scale_coefficient(result.coefficient, -1);
+            scale_coefficient(*result.coefficient, -1);
         }
     }
     // else no one element in common, result is zero.
@@ -221,7 +221,7 @@ regressive_product :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_Node 
 
             anticommute := does_product_anticommute(lhs.basis.bitset, rhs.basis.bitset);
             if anticommute {
-                scale_coefficient(result.coefficient, -1);
+                scale_coefficient(*result.coefficient, -1);
             }
         }
         else {
@@ -231,7 +231,7 @@ regressive_product :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_Node 
             anticommute2 := does_product_anticommute(result.basis.bitset, rhs.basis.bitset);
 
             if anticommute1 != anticommute2 {
-                scale_coefficient(result.coefficient, -1);
+                scale_coefficient(*result.coefficient, -1);
             }
         }
     }
@@ -278,7 +278,7 @@ sum :: (node: *Ast_Node) {
     if node.kind == .Element {
         element := cast(*Element_Node)node;
 
-        result: List(Term) = ---;
+        result: List(*Term) = ---;
 
         coefficient := scratch.buffer[element.basis.bitset];
         if zero_terms(coefficient) {
@@ -307,7 +307,7 @@ sum :: (node: *Ast_Node) {
 scratch_to_ast :: () -> *Ast_Node {
 
     bitset:       int   = 0;
-    coefficient:  List(Term) = ---;
+    coefficient:  List(*Term) = ---;
     basis:       *Basis_Element = null;
 
     if scratch.populated_count == 1 {

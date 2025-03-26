@@ -49,7 +49,7 @@ Variable_Node :: struct {
 Element_Node :: struct {
     #as using _kind: Ast_Node;
 
-	coefficient: List(Term);
+	coefficient: List(*Term);
 	basis:       *Basis_Element;
 }
 
@@ -64,6 +64,12 @@ Binary_Operator_Node :: struct {
     lhs: *Ast_Node;
     op:  Operator_Type;
     rhs: *Ast_Node;
+}
+
+Operator_Node :: struct {
+    #as using _kind: Ast_Node;
+    op: Operator_Type;
+    args: List(*Ast_Node);
 }
 
 // Keywords get mapped to intrinsic node types.
@@ -113,7 +119,7 @@ new_variable_node :: (node_id: u16, name: string) -> *Variable_Node {
     return node;
 }
 
-new_element_node :: (node_id: u16, coefficient: List(Term), basis_element: *Basis_Element) -> *Element_Node {
+new_element_node :: (node_id: u16, coefficient: List(*Term), basis_element: *Basis_Element) -> *Element_Node {
 
     node: *Element_Node = talloc(size_of(Element_Node));
     assert(node != null);
