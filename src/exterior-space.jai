@@ -45,7 +45,7 @@ Basis_Element :: struct {
     symbol: string;
 }
 
-M_Element :: struct {
+M_Element :: struct { // TODO: Use this instead of a *Ast in symbol table.
     // An M-element represents a multi-element. An element that *can* be of mixed grade.
     grade: int      = -1;
     ast:  *Ast_Node = null;
@@ -63,7 +63,7 @@ Exterior_Space :: struct {
     bitset_to_basis_elements: [MAX_NUMBER_OF_BASIS_ELEMENTS] *Basis_Element;
 
     scalar_variable_prefix_characters: string;
-    user_variables: Table(string, M_Element);
+    user_variables: Table(string, *Ast_Node);
 }
 
 space: Exterior_Space;
@@ -105,6 +105,25 @@ update_exterior_space :: (dimension: int, _1_element_symbols: [] string, scalar_
     space.n_element = *space.basis_elements[num_basis_elements-1];
 
     space.scalar_variable_prefix_characters = scalar_variable_prefix_characters;
+    return;
+}
+
+update_or_insert_variables :: (ast: Ast, user_variables: *Table(string, *Ast_Node)) {
+
+    get_variable_and_value :: (node: *Ast_Node) -> string, *Ast_Node {
+        assignment_node := cast(*Binary_Operator_Node)node;
+        variable_node   := cast(*Variable_Node)assignment_node.lhs;
+       
+       return variable_node.name, assignment_node.rhs;
+    }
+
+    variable, value := get_variable_and_value(ast.root);
+    data, found := table_find(user_variables, variable);
+    if found {
+        // TODO: free the old AST that you copied here!
+    }
+    table_set(user_variables, variable, value);
+
     return;
 }
 
@@ -230,7 +249,7 @@ decode :: (value: u16) -> string {
     return builder_to_string(*decoder);
 }
 
-lookup_variable :: (ident: string) -> bool, M_Element {
+lookup_variable :: (ident: string) -> bool, *Ast_Node { // TODO: this should return the M-element
 
     variable, found := table_find(*space.user_variables, ident);
     return found, variable;

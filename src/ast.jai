@@ -136,7 +136,7 @@ new_element_node :: (node_id: u16, coefficient: List(Term), basis_element: *Basi
 new_unary_operator_node :: (node_id: u16, op: Operator_Type, rhs: *Ast_Node) -> *Unary_Operator_Node {
 
     node: *Unary_Operator_Node = talloc(size_of(Unary_Operator_Node));
-    if !node { print( "Error!\n" ); }
+    assert(node != null);
 
     node.kind    = Node_Kind.Unary_Operator;
     node.node_id = node_id;
@@ -149,7 +149,7 @@ new_unary_operator_node :: (node_id: u16, op: Operator_Type, rhs: *Ast_Node) -> 
 new_binary_operator_node :: (node_id: u16, lhs: *Ast_Node, op: Operator_Type, rhs: *Ast_Node) -> *Binary_Operator_Node {
 
     node: *Binary_Operator_Node = talloc(size_of(Binary_Operator_Node));
-    if !node { print("Error!\n" );}
+    assert(node != null);
 
     node.kind    = Node_Kind.Binary_Operator;
     node.node_id = node_id;
@@ -163,7 +163,7 @@ new_binary_operator_node :: (node_id: u16, lhs: *Ast_Node, op: Operator_Type, rh
 new_intrinsic_node :: (node_id: u16, type: Intrinsic_Type) -> *Intrinsic_Node {
 
     node: *Intrinsic_Node = talloc(size_of(Intrinsic_Node));
-    if !node { print("Error!\n"); }
+    assert(node != null);
 
     node.kind    = Node_Kind.Intrinsic;
     node.node_id = node_id;

@@ -94,6 +94,7 @@ main :: () {
 
         if ast_represents_assignment(ast) {
             ast = simplify(ast, is_assignment = true);
+            update_or_insert_variables(ast, *space.user_variables);
             descend(ast.root);
         }
         else {

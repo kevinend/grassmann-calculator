@@ -78,8 +78,8 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
         // as a string then try to figure out how to parse it again or something stupid like that.
         found, variable := lookup_variable(ident.name);
         if found {
-            variable.ast.node_id = ident.node_id;
-            return variable.ast;
+            variable.node_id = ident.node_id;
+            return variable;
         }
         else {
             message := tprint("Undeclared identifier '%'.", ident.name);
