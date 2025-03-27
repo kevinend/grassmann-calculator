@@ -93,7 +93,8 @@ main :: () {
         descend(ast.root);
 
         if ast_represents_assignment(ast) {
-            // simplify and assign
+            ast = simplify(ast, is_assignment = true);
+            descend(ast.root);
         }
         else {
             ast = simplify(ast);

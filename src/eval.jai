@@ -36,16 +36,27 @@
 
 #scope_export
 
-simplify :: (ast: Ast) -> Ast {
+simplify :: (ast: Ast, is_assignment: bool = false) -> Ast {
 
-    simplified: Ast;
-
+    output: Ast;
+    
     reset_scratch();
-    simplified.root = eval(ast.root);
-    sum(simplified.root);
 
-    simplified.root = scratch_to_ast();
-    return simplified;
+    if is_assignment {
+        assignment_node := cast(*Binary_Operator_Node)ast.root;
+        assignment_node.rhs = eval(assignment_node.rhs);
+        sum(assignment_node.rhs);           
+        assignment_node.rhs = scratch_to_ast();
+
+        output.root = assignment_node;
+    }
+    else {
+        output.root = eval(ast.root);
+        sum(output.root);
+        output.root = scratch_to_ast();
+    }
+
+    return output;
 }
 
 reset_scratch :: () {

@@ -185,7 +185,7 @@ copy_node :: (node: *Ast_Node) -> *Ast_Node {
     else
     if node.kind == .Variable {
         src := cast(*Variable_Node)node;
-        dst := new_variable_node(src.node_id, src.name);
+        dst  = new_variable_node(src.node_id, src.name);
     }
 	else
 	if node.kind == .Unary_Operator {

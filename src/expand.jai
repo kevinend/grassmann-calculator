@@ -80,10 +80,10 @@
 
 expand :: (ast: Ast) -> Ast {
 
-    expanded_ast: Ast;
-    expanded_ast.root = distribute(ast.root);
+    output: Ast;
+    output.root = distribute(ast.root);
     
-    return expanded_ast;
+    return output;
 }
 
 #scope_file
@@ -128,7 +128,7 @@ distribute :: (node: *Ast_Node) -> *Ast_Node {
             lhs := cast(*Binary_Operator_Node)product_op.lhs;
             rhs := cast(*Binary_Operator_Node)product_op.rhs;
 
-            // check if the Grassmann products are over sums or differences.
+            // check if the Grassmann products are over sums
             if lhs.kind == .Binary_Operator && lhs.op == .Addition {
 
                  new_lhs := new_binary_operator_node(
