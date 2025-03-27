@@ -182,6 +182,11 @@ copy_node :: (node: *Ast_Node) -> *Ast_Node {
 
 		dst = new_element_node(src.node_id, coefficient, basis);
 	}
+    else
+    if node.kind == .Variable {
+        src := cast(*Variable_Node)node;
+        dst := new_variable_node(src.node_id, src.name);
+    }
 	else
 	if node.kind == .Unary_Operator {
 		src := cast(*Unary_Operator_Node)node;
