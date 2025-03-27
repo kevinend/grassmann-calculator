@@ -79,6 +79,13 @@ Intrinsic_Node :: struct {
     type: Intrinsic_Type;
 }
 
+ast_represents_assignment :: (ast: Ast) -> bool {
+    assert(ast.root != null);
+    binary_op := cast(*Binary_Operator_Node)ast.root;
+
+    return ast.root.kind == .Binary_Operator && binary_op.op == .Assignment;
+}
+
 new_error_node :: (node_id: u16, message: string) -> *Error_Node {
 
     node: *Error_Node = talloc(size_of(Error_Node));
