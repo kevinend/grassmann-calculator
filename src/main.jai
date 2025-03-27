@@ -21,38 +21,30 @@
 
 main :: () {
 
-    USER_PROMPT :: "> ";
-    success: bool = false;
-    quit: bool    = false;
-
-    lexer:  Lexer;
-    tokens: [] Token;
-
-    parser: Parser;
-
-    ast:            Ast;
-    expanded_ast:   Ast;
-    simplified_ast: Ast;
-
     default_dimension: int = 4;
     default_1_elements: [] string = .["e0","e1","e2","e3"];
     default_scalar_variable_prefix_characters: string = "abcdnpqrsuvABCKLMNPQRS";
     
     // Preconditions
-    update_exterior_space(
-         default_dimension
-        ,default_1_elements
-        ,default_scalar_variable_prefix_characters
-    );
-    
+    update_exterior_space(default_dimension, default_1_elements, default_scalar_variable_prefix_characters);
     initialize_operator_tables();
 
-	input: string;
+    quit: bool    = false;
+    USER_PROMPT :: "> ";
+    success: bool = false;
+    input: string;
+    
+    lexer:  Lexer;
+    tokens: [] Token;
+
+    parser: Parser;
+    ast:    Ast;
+
 	while !quit {
 
         reset_temporary_storage();
         
-		print( "%", USER_PROMPT );
+		print("%", USER_PROMPT);
 		success, input = read_line();
         if !success {
             flush_input();
@@ -97,11 +89,11 @@ main :: () {
         // Cloning the nodes wastes memory but we are using the linear allocator so new nodes will be located near one another
         // so maybe not a huge problem? 03.18.2025
 
-        expanded_ast = expand(ast);
-        descend(expanded_ast.root);
+        ast = expand(ast);
+        descend(ast.root);
 
-        simplified_ast = simplify(expanded_ast);
-        descend(simplified_ast.root);
+        ast = simplify(ast);
+        descend(ast.root);
     }
 }
 
