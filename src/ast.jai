@@ -88,7 +88,7 @@ ast_represents_assignment :: (ast: Ast) -> bool {
 
 new_error_node :: (node_id: u16, message: string) -> *Error_Node {
 
-    node: *Error_Node = talloc(size_of(Error_Node));
+    node: *Error_Node = alloc(size_of(Error_Node));
     assert(node != null);
 
     node.kind    = Node_Kind.Error;
@@ -100,7 +100,7 @@ new_error_node :: (node_id: u16, message: string) -> *Error_Node {
 
 new_identifier_node :: (node_id: u16, name: string) -> *Identifier_Node {
 
-    node: *Identifier_Node = talloc(size_of(Identifier_Node));
+    node: *Identifier_Node = alloc(size_of(Identifier_Node));
     assert(node != null);
 
     node.kind    = Node_Kind.Identifier;
@@ -111,7 +111,7 @@ new_identifier_node :: (node_id: u16, name: string) -> *Identifier_Node {
 
 new_variable_node :: (node_id: u16, name: string) -> *Variable_Node {
 
-    node: *Variable_Node = talloc(size_of(Variable_Node));
+    node: *Variable_Node = alloc(size_of(Variable_Node));
     assert(node != null);
 
     node.kind    = Node_Kind.Variable;
@@ -122,7 +122,7 @@ new_variable_node :: (node_id: u16, name: string) -> *Variable_Node {
 
 new_element_node :: (node_id: u16, coefficient: List(Term), basis_element: *Basis_Element) -> *Element_Node {
 
-    node: *Element_Node = talloc(size_of(Element_Node));
+    node: *Element_Node = alloc(size_of(Element_Node));
     assert(node != null);
 
     node.kind        = Node_Kind.Element;
@@ -135,7 +135,7 @@ new_element_node :: (node_id: u16, coefficient: List(Term), basis_element: *Basi
 
 new_unary_operator_node :: (node_id: u16, op: Operator_Type, rhs: *Ast_Node) -> *Unary_Operator_Node {
 
-    node: *Unary_Operator_Node = talloc(size_of(Unary_Operator_Node));
+    node: *Unary_Operator_Node = alloc(size_of(Unary_Operator_Node));
     assert(node != null);
 
     node.kind    = Node_Kind.Unary_Operator;
@@ -148,7 +148,7 @@ new_unary_operator_node :: (node_id: u16, op: Operator_Type, rhs: *Ast_Node) -> 
 
 new_binary_operator_node :: (node_id: u16, lhs: *Ast_Node, op: Operator_Type, rhs: *Ast_Node) -> *Binary_Operator_Node {
 
-    node: *Binary_Operator_Node = talloc(size_of(Binary_Operator_Node));
+    node: *Binary_Operator_Node = alloc(size_of(Binary_Operator_Node));
     assert(node != null);
 
     node.kind    = Node_Kind.Binary_Operator;
@@ -162,7 +162,7 @@ new_binary_operator_node :: (node_id: u16, lhs: *Ast_Node, op: Operator_Type, rh
 
 new_intrinsic_node :: (node_id: u16, type: Intrinsic_Type) -> *Intrinsic_Node {
 
-    node: *Intrinsic_Node = talloc(size_of(Intrinsic_Node));
+    node: *Intrinsic_Node = alloc(size_of(Intrinsic_Node));
     assert(node != null);
 
     node.kind    = Node_Kind.Intrinsic;
@@ -170,6 +170,24 @@ new_intrinsic_node :: (node_id: u16, type: Intrinsic_Type) -> *Intrinsic_Node {
     node.type    = type;
 
     return node;
+}
+
+free_node :: (node: *Ast_Node) {
+
+    if node.kind == .Element {
+        src := cast(*Element_Node)node;
+        free_terms(src.coefficient);
+        free(src);
+    }
+    else
+    if node.kind == .Binary_Operator {
+        src := cast(*Binary_Operator_Node)node;
+        free_node(src.lhs);
+        free_node(src.rhs);
+        free(src);
+    }
+
+    return;
 }
 
 copy_node :: (node: *Ast_Node) -> *Ast_Node {
@@ -207,4 +225,33 @@ copy_node :: (node: *Ast_Node) -> *Ast_Node {
 	}
 
 	return dst;
+}
+
+ast_to_string :: (ast: Ast) -> string {
+
+    ast_to_string_helper :: (node: *Ast_Node, builder: *String_Builder) {
+
+        if node.kind == .Element {
+            element := cast(*Element_Node)node;
+            coefficient  := term_to_string(element.coefficient);
+            basis_symbol := element.basis.symbol;
+
+            append(builder, "(" );
+            append(builder, coefficient);
+            append(builder, ")" );
+            append(builder, basis_symbol);
+        }
+        else
+        if node.kind == .Binary_Operator {
+            binary_op := cast(*Binary_Operator_Node)node;
+            ast_to_string_helper(binary_op.lhs, builder);
+            append(builder, " + ");
+            ast_to_string_helper(binary_op.rhs, builder);
+        }
+    }
+
+    builder: String_Builder;
+    ast_to_string_helper(ast.root, *builder);
+
+    return builder_to_string(*builder);
 }

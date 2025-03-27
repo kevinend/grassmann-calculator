@@ -108,21 +108,19 @@ update_exterior_space :: (dimension: int, _1_element_symbols: [] string, scalar_
     return;
 }
 
-update_or_insert_variables :: (ast: Ast, user_variables: *Table(string, *Ast_Node)) {
+update_or_insert_variables :: (name: string, value: *Ast_Node, user_variables: *Table(string, *Ast_Node)) {
 
-    get_variable_and_value :: (node: *Ast_Node) -> string, *Ast_Node {
-        assignment_node := cast(*Binary_Operator_Node)node;
-        variable_node   := cast(*Variable_Node)assignment_node.lhs;
-       
-       return variable_node.name, assignment_node.rhs;
-    }
-
-    variable, value := get_variable_and_value(ast.root);
-    data, found := table_find(user_variables, variable);
+    variable, found := table_find(user_variables, name);
     if found {
-        // TODO: free the old AST that you copied here!
+        // Recursively free's children and coefficients/terms/factors.
+        free_node(variable);
     }
-    table_set(user_variables, variable, value);
+
+    builder: String_Builder;
+    append(*builder, name);
+
+    key := builder_to_string(*builder);
+    table_set(user_variables, key, value);
 
     return;
 }

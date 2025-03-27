@@ -16,12 +16,17 @@ check_semantics :: (ast: *Ast) -> bool {
 
     passed: bool = true;
 
-    ast.root = check(ast.root);
+    semantic_context := context;
+    semantic_context.allocator = temp;
+    push_context semantic_context {
+        ast.root = check(ast.root);
+    }
+
     if ast.root.kind == .Error {
+        passed = false;
+
         error := cast(*Error_Node)ast.root;
         print("%\n", error.message);
-
-        passed = false;
     }
 
     return passed;

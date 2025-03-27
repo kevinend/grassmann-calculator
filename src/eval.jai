@@ -36,26 +36,44 @@
 
 #scope_export
 
-simplify :: (ast: Ast, is_assignment: bool = false) -> Ast {
+simplify_and_assign :: (ast: Ast, user_variables: *Table(string, *Ast_Node)) {
+
+    reset_scratch();
+
+    assignment_node := cast(*Binary_Operator_Node)ast.root;
+
+    variable        := cast(*Variable_Node)assignment_node.lhs;
+    expression      := assignment_node.rhs;
+
+    eval_context := context;
+    eval_context.allocator = temp;
+    push_context eval_context {
+        partial_result := eval(expression);
+        sum(partial_result);
+    }
+
+    // AST assigned to the variable is allocated in the heap.
+    value := scratch_to_ast();
+    update_or_insert_variables(variable.name, value, user_variables);
+
+    return;
+}
+
+simplify :: (ast: Ast) -> Ast {
 
     output: Ast;
     
     reset_scratch();
 
-    if is_assignment {
-        assignment_node := cast(*Binary_Operator_Node)ast.root;
-        assignment_node.rhs = eval(assignment_node.rhs);
-        sum(assignment_node.rhs);           
-        assignment_node.rhs = scratch_to_ast();
-
-        output.root = assignment_node;
-    }
-    else {
-        output.root = eval(ast.root);
-        sum(output.root);
+    expression   := ast.root;
+    eval_context := context;
+    eval_context.allocator = temp;
+    push_context eval_context {
+        partial_result := eval(expression);
+        sum(partial_result);
         output.root = scratch_to_ast();
     }
-
+    
     return output;
 }
 
@@ -323,7 +341,7 @@ scratch_to_ast :: () -> *Ast_Node {
 
     if scratch.populated_count == 1 {
         bitset      = scratch.populated_slots[0];
-        coefficient = scratch.buffer[bitset];
+        coefficient = copy_terms(scratch.buffer[bitset]);
         basis       = get_basis_element(bitset);
 
 		root := new_element_node(0, coefficient, basis);
@@ -335,7 +353,7 @@ scratch_to_ast :: () -> *Ast_Node {
 		current := root;
 		while i < scratch.populated_count-2 {
             bitset      = scratch.populated_slots[i];
-            coefficient = scratch.buffer[bitset];
+            coefficient = copy_terms(scratch.buffer[bitset]);
             basis       = get_basis_element(bitset);
 
 			current.lhs = new_element_node(0, coefficient, basis);
@@ -347,13 +365,13 @@ scratch_to_ast :: () -> *Ast_Node {
 		}
 
         bitset       = scratch.populated_slots[i];
-        coefficient  = scratch.buffer[bitset];
+        coefficient  = copy_terms(scratch.buffer[bitset]);
         basis        = get_basis_element(bitset);
 
 		current.lhs  = new_element_node(0, coefficient, basis);
 
         bitset       = scratch.populated_slots[i+1];
-        coefficient  = scratch.buffer[bitset];
+        coefficient  = copy_terms(scratch.buffer[bitset]);
         basis        = get_basis_element(bitset);
 
 		current.rhs = new_element_node(0, coefficient, basis);

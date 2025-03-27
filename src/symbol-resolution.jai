@@ -15,7 +15,12 @@ resolve_symbols :: (ast: *Ast, space: *Exterior_Space) {
     assert(ast      != null);
     assert(ast.root != null);
 
-    ast.root = resolve(ast.root, null, space);
+    resolution_context := context;
+    resolution_context.allocator = temp;
+    push_context resolution_context {
+        ast.root = resolve(ast.root, null, space);
+    }
+
     return;
 }
 
@@ -28,7 +33,6 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
         ident := cast(*Identifier_Node)node;
 
         // Check if identifier matches one of the currently declared basis 1-elements.
-
         _1_element := matches_1_element(ident.name);
         if _1_element { 
             coefficient := new_coefficient(1);
@@ -38,7 +42,6 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
         }
 
         // Check if identifier starts with a character of the currently declared scalar variables. If so, validate it matches the schema otherwise return an error.
-
         match := match_scalar_variable(ident.name);
         if match {
             valid := valid_scalar_variable(ident.name);
@@ -58,7 +61,6 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
         }
 
         // Check if the identifier is the left-hand side of an assignment operator.
-
         if parent && parent.kind == .Binary_Operator {
             binary_op := cast(*Binary_Operator_Node)parent;
             if binary_op.op == .Assignment && binary_op.lhs == node {
@@ -76,10 +78,15 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
         // The Grassmann products and sums have been simplified as much as possible during the previous expression evaluation
         // so we aren't 'redoing' the same work again but it doesn't make sense to store the multi-element in the symbol table
         // as a string then try to figure out how to parse it again or something stupid like that.
+        //
+        // Also the AST in the user variables is allocated on the heap. We copy the AST into temporary memory so that
+        // operations on the nodes don't alter the stored value.
         found, variable := lookup_variable(ident.name);
         if found {
             variable.node_id = ident.node_id;
-            return variable;
+            var := copy_node(variable);
+
+            return var;
         }
         else {
             message := tprint("Undeclared identifier '%'.", ident.name);

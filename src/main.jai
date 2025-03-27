@@ -41,6 +41,25 @@ main :: () {
     ast:    Ast;
 
 	while !quit {
+        ts := context.temporary_storage;
+        if !ts {
+            print("No temporary storage!\n");
+        }
+        else {
+            print("Temporary storage metrics\n");
+            print("Size == %\n", ts.original_size);
+            print("Current_page_bytes_occupied == %\n", ts.current_page_bytes_occupied);
+            print("Total bytes occupied == %\n", ts.total_bytes_occupied);
+            print("High water mark == %\n", ts.high_water_mark);
+        }
+
+/*
+        ts.data = ts.original_data;
+        ts.size = ts.original_size;
+        ts.current_page_bytes_occupied = 0;
+        ts.total_bytes_occupied = 0;
+        ts.high_water_mark = 0;
+*/
 
         reset_temporary_storage();
         
@@ -93,13 +112,12 @@ main :: () {
         descend(ast.root);
 
         if ast_represents_assignment(ast) {
-            ast = simplify(ast, is_assignment = true);
-            update_or_insert_variables(ast, *space.user_variables);
-            descend(ast.root);
+            simplify_and_assign(ast, *space.user_variables);
         }
         else {
             ast = simplify(ast);
-            descend(ast.root);
+            result := ast_to_string(ast);
+            print("%\n", result);
         }
     }
 }

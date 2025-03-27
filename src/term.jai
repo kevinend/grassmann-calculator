@@ -100,7 +100,7 @@ new_coefficient :: (value: float) -> List(Term) {
 
 new_term :: (value: float) -> *Term {
 
-    term: *Term = talloc(size_of(Term));
+    term: *Term = alloc(size_of(Term));
     assert(term != null);
     memset(term, 0, size_of(Term));
 
@@ -119,11 +119,11 @@ new_coefficient :: (multiples: float, exponent: s16, scalar_variable: string) ->
 
 new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> *Term {
 
-    term := cast(*Term)talloc(size_of(Term));
+    term := cast(*Term)alloc(size_of(Term));
     assert(term != null);
     memset(term, 0, size_of(Term));
 
-    term.factors.data  = talloc(size_of(Factor));
+    term.factors.data  = alloc(size_of(Factor));
     term.factors.count = 1;
     assert(term.factors.data != null);
 
@@ -154,6 +154,30 @@ copy_terms :: (source: List(Term)) -> List(Term), int {
     }
 
     return destination, count;
+}
+
+free_term :: (source: *Term) {
+
+    assert(source != null);
+
+    if source.factors.count > 0 {
+        free(source.factors.data);
+    }
+    free(source);
+
+    return;
+}
+
+free_terms :: (source: List(Term)) {
+
+    src := leading_term(source);
+    while src != null {
+        next := next_term(src);
+        free(src);
+        src = next;
+    }
+
+    return;
 }
 
 scale_coefficient :: (terms: List(Term), s: float) {
@@ -281,7 +305,7 @@ term_to_string :: (list: List(Term)) -> string {
     
     while current.next != null {
         term_to_string_helper(current, *builder);
-        append(*builder, " + ");
+        append(*builder, "+");
         current = current.next;
     }
     term_to_string_helper(current, *builder);
@@ -298,12 +322,12 @@ copy_term :: (term: *Term) -> *Term {
     assert(term != null);
 
     src: *Term = term;
-    dst: *Term = talloc(size_of(Term));
+    dst: *Term = alloc(size_of(Term));
     assert(dst != null);
 
     memcpy(dst, src, size_of(Term));
     if src.factors.count > 0 {
-        dst.factors.data  = talloc(src.factors.count * size_of(Factor));
+        dst.factors.data  = alloc(src.factors.count * size_of(Factor));
         dst.factors.count = src.factors.count;
         assert(dst.factors.data != null);
 

@@ -81,7 +81,12 @@
 expand :: (ast: Ast) -> Ast {
 
     output: Ast;
-    output.root = distribute(ast.root);
+
+    expansion_context := context;
+    expansion_context.allocator = temp;
+    push_context expansion_context {
+        output.root = distribute(ast.root);
+    }
     
     return output;
 }
