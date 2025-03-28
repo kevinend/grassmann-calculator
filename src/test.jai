@@ -2,6 +2,22 @@
 
 main :: () {
 
+        Factor :: struct {
+        exponent: s16;
+        scalar_variable: u16;
+    }
+
+    Term :: struct {
+        value: float;
+        #place value; multiples: float;
+        numerator:   [6] Factor;
+        denominator: [6] Factor;
+        next:     *Term;
+    }
+
+    print("Size of term == %\n", size_of(Term));
+
+
     // These are the actual test cases that need moved into an automated build cycle.
     {
         /*

@@ -40,6 +40,8 @@ main :: () {
     parser: Parser;
     ast:    Ast;
 
+    print("Size of term == %\n", size_of(Term));
+
 	while !quit {
         ts := context.temporary_storage;
         if !ts {
@@ -94,10 +96,10 @@ main :: () {
             continue;
         }
 
-        descend(ast.root);
+ //     descend(ast.root);
 
         resolve_symbols(*ast, *space);
-        descend(ast.root);
+ //     descend(ast.root);
 
         pass := check_semantics(*ast);
         if !pass {

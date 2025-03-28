@@ -319,6 +319,8 @@ copy_term :: (term: *Term) -> *Term {
 
     // Copy of a single term.
 
+    print("Source == %\n", term);
+
     assert(term != null);
 
     src: *Term = term;
@@ -326,6 +328,8 @@ copy_term :: (term: *Term) -> *Term {
     assert(dst != null);
 
     memcpy(dst, src, size_of(Term));
+    dst.next = null;
+
     if src.factors.count > 0 {
         dst.factors.data  = alloc(src.factors.count * size_of(Factor));
         dst.factors.count = src.factors.count;
