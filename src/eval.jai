@@ -202,7 +202,7 @@ scalar_multiplication :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_No
 
     assert(lhs.basis.grade == 0 || rhs.basis.grade == 0);
 
-    coefficient := new_coefficient(0); // TODO: replace with zero()
+    coefficient := zero();
     result      := new_element_node(0, coefficient, get_basis_element(0));
 
     result.coefficient = multiply_coefficients(lhs.coefficient, rhs.coefficient);
@@ -213,7 +213,7 @@ scalar_multiplication :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_No
 
 exterior_product :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_Node {
 
-    coefficient := new_coefficient(0); // TODO: replace with zero()
+    coefficient := zero();
     result      := new_element_node(0, coefficient, get_basis_element(0));
 
     if lhs.basis.grade == 0 || rhs.basis.grade == 0 {
@@ -239,7 +239,7 @@ exterior_product :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_Node {
 
 regressive_product :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_Node {
 
-    coefficient := new_coefficient(0); // TODO: Replace with zero()
+    coefficient := zero();
     result      := new_element_node(0, coefficient, get_basis_element(0));
     if (lhs.basis.bitset | rhs.basis.bitset) == space.n_element.bitset {
 

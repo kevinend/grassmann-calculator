@@ -35,7 +35,7 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
         // Check if identifier matches one of the currently declared basis 1-elements.
         _1_element := matches_1_element(ident.name);
         if _1_element { 
-            coefficient := new_coefficient(1); // TODO: Replace with one()
+            coefficient := one();
             element     := new_element_node(ident.node_id, coefficient, _1_element);
 
             return element;
