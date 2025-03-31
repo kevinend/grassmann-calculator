@@ -21,14 +21,19 @@
 
 main :: () {
 
+    // Configurations:
     default_dimension: int = 4;
     default_1_elements: [] string = .["e0","e1","e2","e3"];
     default_scalar_variable_prefix_characters: string = "abcdnpqrsuvABCKLMNPQRS";
-    
-    // Preconditions
+
+    scratch: Scratch;
+
     update_exterior_space(default_dimension, default_1_elements, default_scalar_variable_prefix_characters);
     initialize_operator_tables();
-
+    initialize_coefficients();
+    initialize_scratch_space(*scratch);
+   
+    // Variables for main loop:
     quit: bool    = false;
     USER_PROMPT :: "> ";
     success: bool = false;
@@ -39,8 +44,6 @@ main :: () {
 
     parser: Parser;
     ast:    Ast;
-
-    print("Size of term == %\n", size_of(Term));
 
 	while !quit {
         ts := context.temporary_storage;

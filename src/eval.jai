@@ -79,7 +79,7 @@ simplify :: (ast: Ast) -> Ast {
 
 reset_scratch :: () {
 
-    memset(scratch.buffer.data, 0,  Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS * size_of(List(Term)));
+    memset(scratch.buffer.data, 0,  MAX_NUMBER_OF_BASIS_ELEMENTS * size_of([] Term));
     scratch.populated_count = 0;
 
     return;
@@ -108,8 +108,8 @@ Scratch :: struct {
 
     */
 
-    buffer:          [Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS] List(Term);
-    populated_slots: [Exterior_Space.MAX_NUMBER_OF_BASIS_ELEMENTS] int;
+    buffer:          [MAX_NUMBER_OF_BASIS_ELEMENTS] [] Term;
+    populated_slots: [MAX_NUMBER_OF_BASIS_ELEMENTS] int;
     populated_count: int;
 }
 
@@ -202,7 +202,7 @@ scalar_multiplication :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_No
 
     assert(lhs.basis.grade == 0 || rhs.basis.grade == 0);
 
-    coefficient := new_coefficient(0);
+    coefficient := new_coefficient(0); // TODO: replace with zero()
     result      := new_element_node(0, coefficient, get_basis_element(0));
 
     result.coefficient = multiply_coefficients(lhs.coefficient, rhs.coefficient);
@@ -213,7 +213,7 @@ scalar_multiplication :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_No
 
 exterior_product :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_Node {
 
-    coefficient := new_coefficient(0);
+    coefficient := new_coefficient(0); // TODO: replace with zero()
     result      := new_element_node(0, coefficient, get_basis_element(0));
 
     if lhs.basis.grade == 0 || rhs.basis.grade == 0 {
@@ -239,7 +239,7 @@ exterior_product :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_Node {
 
 regressive_product :: (lhs: *Element_Node, rhs: *Element_Node) -> *Element_Node {
 
-    coefficient := new_coefficient(0);
+    coefficient := new_coefficient(0); // TODO: Replace with zero()
     result      := new_element_node(0, coefficient, get_basis_element(0));
     if (lhs.basis.bitset | rhs.basis.bitset) == space.n_element.bitset {
 
@@ -307,12 +307,12 @@ sum :: (node: *Ast_Node) {
     if node.kind == .Element {
         element := cast(*Element_Node)node;
 
-        result: List(Term) = ---;
+        result: [] Term;
 
         coefficient := scratch.buffer[element.basis.bitset];
-        if zero_terms(coefficient) {
+        if coefficient_contains_no_terms(coefficient) {
             // first time during the current expression evaluation where we've encountered this basis element in the tree.
-            result = copy_terms(element.coefficient);
+            result = deep_copy_terms(element.coefficient);
             scratch.populated_slots[scratch.populated_count] = element.basis.bitset;
             scratch.populated_count += 1;
         }
@@ -335,13 +335,13 @@ sum :: (node: *Ast_Node) {
 
 scratch_to_ast :: () -> *Ast_Node {
 
-    bitset:       int   = 0;
-    coefficient:  List(Term) = ---;
+    bitset:       int     = 0;
+    coefficient:  [] Term = ---;
     basis:       *Basis_Element = null;
 
     if scratch.populated_count == 1 {
         bitset      = scratch.populated_slots[0];
-        coefficient = copy_terms(scratch.buffer[bitset]);
+        coefficient = deep_copy_terms(scratch.buffer[bitset]);
         basis       = get_basis_element(bitset);
 
 		root := new_element_node(0, coefficient, basis);
@@ -353,7 +353,7 @@ scratch_to_ast :: () -> *Ast_Node {
 		current := root;
 		while i < scratch.populated_count-2 {
             bitset      = scratch.populated_slots[i];
-            coefficient = copy_terms(scratch.buffer[bitset]);
+            coefficient = deep_copy_terms(scratch.buffer[bitset]);
             basis       = get_basis_element(bitset);
 
 			current.lhs = new_element_node(0, coefficient, basis);
@@ -365,13 +365,13 @@ scratch_to_ast :: () -> *Ast_Node {
 		}
 
         bitset       = scratch.populated_slots[i];
-        coefficient  = copy_terms(scratch.buffer[bitset]);
+        coefficient  = deep_copy_terms(scratch.buffer[bitset]);
         basis        = get_basis_element(bitset);
 
 		current.lhs  = new_element_node(0, coefficient, basis);
 
         bitset       = scratch.populated_slots[i+1];
-        coefficient  = copy_terms(scratch.buffer[bitset]);
+        coefficient  = deep_copy_terms(scratch.buffer[bitset]);
         basis        = get_basis_element(bitset);
 
 		current.rhs = new_element_node(0, coefficient, basis);

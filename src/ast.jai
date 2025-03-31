@@ -49,7 +49,7 @@ Variable_Node :: struct {
 Element_Node :: struct {
     #as using _kind: Ast_Node;
 
-	coefficient: List(Term);
+	coefficient: [] Term;
 	basis:       *Basis_Element;
 }
 
@@ -120,7 +120,7 @@ new_variable_node :: (node_id: u16, name: string) -> *Variable_Node {
     return node;
 }
 
-new_element_node :: (node_id: u16, coefficient: List(Term), basis_element: *Basis_Element) -> *Element_Node {
+new_element_node :: (node_id: u16, coefficient: [] Term, basis_element: *Basis_Element) -> *Element_Node {
 
     node: *Element_Node = alloc(size_of(Element_Node));
     assert(node != null);
@@ -195,7 +195,7 @@ copy_node :: (node: *Ast_Node) -> *Ast_Node {
 	dst: *Ast_Node = null;
 	if node.kind == .Element {
 		src         := cast(*Element_Node)node;
-        coefficient := copy_terms(src.coefficient);
+        coefficient := src.coefficient;         // shallow copy!
         basis       := src.basis;
 
 		dst = new_element_node(src.node_id, coefficient, basis);
@@ -233,7 +233,7 @@ ast_to_string :: (ast: Ast) -> string {
 
         if node.kind == .Element {
             element := cast(*Element_Node)node;
-            coefficient  := term_to_string(element.coefficient);
+            coefficient  := coefficient_to_string(element.coefficient);
             basis_symbol := element.basis.symbol;
 
             append(builder, "(" );

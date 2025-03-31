@@ -51,10 +51,10 @@ M_Element :: struct { // TODO: Use this instead of a *Ast in symbol table.
     ast:  *Ast_Node = null;
 }
 
-Exterior_Space :: struct {
+MAX_DIMENSION :: 5;
+MAX_NUMBER_OF_BASIS_ELEMENTS :: #run power(2, MAX_DIMENSION);
 
-    MAX_DIMENSION :: 6;
-    MAX_NUMBER_OF_BASIS_ELEMENTS :: #run power(2, MAX_DIMENSION);
+Exterior_Space :: struct {
 
     dimension: int;
     n_element: *Basis_Element;
@@ -70,7 +70,7 @@ space: Exterior_Space;
 
 update_exterior_space :: (dimension: int, _1_element_symbols: [] string, scalar_variable_prefix_characters: string) {
 
-    assert(dimension <= Exterior_Space.MAX_DIMENSION);
+    assert(dimension <= MAX_DIMENSION);
     assert(dimension == _1_element_symbols.count);
 
     space.dimension = dimension;

@@ -21,107 +21,90 @@ Term :: struct {
     value: float;
     #place value; multiples: float;
 
-    factors: [] Factor;
-    next:     *Term;
-    previous: *Term;
+    factors:      [] Factor; // TODO: Remove!
+    numerators:   [] Factor;
+    denominators: [] Factor;
+    count:   int;
 }
 
-List :: struct (T: Type) {
-    // This list is not re-usable! Specific to terms!
-    head: *T = null;
-    tail: *T = null;
+Coefficient :: struct {
+    terms: [] Term;
 }
 
-zero_terms :: (list: List(Term)) -> bool {
-    return list.head == null && list.tail == null;
-}
+// Zero and one are used frequently. Instead of constantly allocating set once and reuse.
+term_zero :: Term.{ value = 0 };
+term_one  :: Term.{ value = 1 };
 
-get_term_count :: (list: List(Term)) -> int {
-    current := list.head;
-    count   := 0;
-    while current != null {
-        count += 1;
-        current = current.next;
-    }
+coefficient_zero: Coefficient;
+coefficient_one:  Coefficient;
 
-    return count;
-}
-
-leading_term :: inline (list: List(Term)) -> *Term {
-    return list.head;
-}
-
-next_term :: inline (term: *Term) -> *Term {
-    return term.next;
-}
-
-remove_term :: inline (list: *List(Term), term: *Term) {
-
-    if term == list.head {
-        list.head = list.head.next;
-    }
-    else
-    if term == list.tail {
-        list.tail = list.tail.previous;
-    }
-    else {
-        term.previous.next = term.next;
-    }
-}
-
-append_term :: (list: *List(Term), term: *Term) {
+initialize_coefficients :: () {
+    coefficient_zero.terms.data  = *term_zero;
+    coefficient_zero.terms.count = 1;
     
-    // Adds the new to the end of the list.
-
-    assert(list != null);
-    assert(term != null);
-
-    if zero_terms(list) {
-        list.head = term;
-        list.tail = term;
-    }
-    else {
-        term.previous  = list.tail;
-        list.tail.next = term;
-        list.tail      = term;
-    }
+    coefficient_one.terms.data = *term_one;
+    coefficient_one.terms.count = 1;
 
     return;
 }
 
-new_coefficient :: (value: float) -> List(Term) {
-
-    list: List(Term);
-    term := new_term(value);
-
-    append_term(*list, term);
-    return list;
+ZERO :: () -> Coefficient {
+    return coefficient_zero;
 }
 
-new_term :: (value: float) -> *Term {
+ONE :: () -> Coefficient {
+    return coefficient_one;
+} 
 
-    term: *Term = alloc(size_of(Term));
-    assert(term != null);
-    memset(term, 0, size_of(Term));
+coefficient_contains_no_terms :: inline (terms: [] Term) -> bool {
+    return terms.count == 0;
+}
 
+remove_term :: inline (terms: *[] Term, index: int) {
+
+    // Swap the term to remove with the end and decrement the count.
+    // This reorders the terms but doesn't impact the result. Factors have to stay in order but terms don't.
+    assert(terms.count > 0);
+
+    terms[index] = terms[terms.count-1];
+    terms.count -= 1;
+
+    return;
+}
+
+new_coefficient :: (value: float) -> [] Term {
+
+    // TODO: Make this a coefficient that refers to other terms! coefficient.terms.data 
+    terms: [] Term;
+    terms.data = alloc(1*size_of(Term));
+    terms.count = 1;
+
+    terms[0] = new_term(value);
+    return terms;
+}
+
+new_term :: (value: float) -> Term {
+
+    term: Term;
     term.value = value;
     return term;
 }
 
-new_coefficient :: (multiples: float, exponent: s16, scalar_variable: string) -> List(Term) {
+new_coefficient :: (multiples: float, exponent: s16, scalar_variable: string) -> [] Term {
 
-    list: List(Term);
-    term := new_term(multiples, exponent, scalar_variable);
+    terms: [] Term;
+    terms.data = alloc(1*size_of(Term));
+    terms.count = 1;
 
-    append_term(*list, term);
-    return list;
+    terms[0] = new_term(multiples, exponent, scalar_variable);
+    return terms;
 }
 
-new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> *Term {
+new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> Term {
 
-    term := cast(*Term)alloc(size_of(Term));
-    assert(term != null);
-    memset(term, 0, size_of(Term));
+    term: Term;
+
+    term.multiples = multiples;
 
     term.factors.data  = alloc(size_of(Factor));
     term.factors.count = 1;
@@ -129,31 +112,22 @@ new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> *Term 
 
     term.factors[0].exponent        = exponent;
     term.factors[0].scalar_variable = encode(scalar_variable);
-
-    term.multiples = multiples;
     term.factors.count = 1;
 
     return term;
 }
 
-copy_terms :: (source: List(Term)) -> List(Term), int {
+deep_copy_terms :: (source: [] Term) -> [] Term {
 
     // Copy all the terms from the source list into the destination list.
-    destination: List(Term);
+    destination: [] Term;
+    destination.data  = alloc(source.count * size_of(Term));
+    destination.count = source.count; 
+    assert(destination.data != null);
 
-    src := leading_term(source);
-    append_term(*destination, copy_term(src));
-    
-    src = next_term(src);
-    count := 1;
-    while src != null {
-        append_term(*destination, copy_term(src));
-        src = next_term(src);
+    memcpy(destination.data, source.data, source.count * size_of(Term));
 
-        count += 1;
-    }
-
-    return destination, count;
+    return destination;
 }
 
 free_term :: (source: *Term) {
@@ -168,30 +142,21 @@ free_term :: (source: *Term) {
     return;
 }
 
-free_terms :: (source: List(Term)) {
+free_terms :: (terms: [] Term) {
 
-    src := leading_term(source);
-    while src != null {
-        next := next_term(src);
-        free(src);
-        src = next;
-    }
-
+    // Deallocate buffer storing the terms.
+    free(terms.data);
     return;
 }
 
-scale_coefficient :: (terms: List(Term), s: float) {
+scale_coefficient :: (terms: [] Term, s: float) {
 
-    c := leading_term(terms);
-    while c {
-        c.multiples *= s;
-        c = c.next;
+    for *term: terms {
+        term.multiples *= s;
     }
-
-    return;
 }
 
-multiply_coefficients :: (lhs: List(Term), rhs: List(Term)) -> List(Term) {
+multiply_coefficients :: (lhs: [] Term, rhs: [] Term) -> [] Term {
 
     /*
         Distribute scalar (and scalar variables).
@@ -206,23 +171,23 @@ multiply_coefficients :: (lhs: List(Term), rhs: List(Term)) -> List(Term) {
         Each element always has at *least* one term.
     */
 
-    result: List(Term);
-    Lterm := leading_term(lhs);
-    Rterm := leading_term(rhs);
+    // TODO: We should copy LHS and RHS into a separate scratch buffer!
 
-    while Lterm != null {
-        while Rterm != null {
-            product := multiply_term(Lterm, Rterm);
-            append_term(*result, product);
-            Rterm = next_term(Rterm);
+    scratch: [..] Term;
+
+    for i: 0..lhs.count-1 {
+        for j: 0..rhs.count-1 {
+            product := multiply_term(*lhs[i], *rhs[j]);
+            array_add(*scratch, product);
         }
-        Lterm = next_term(Lterm);
     }
 
+    result: [] Term;
+    result = scratch;
     return result;
 }
 
-terms_are_equal :: (lterm: *Term, rterm: *Term) -> bool {
+terms_are_equal :: (lterm: Term, rterm: Term) -> bool {
     
 	// Terms are equal when the following conditions are true.
 	//  1. Each term contains the same number of factors (even if the count is zero).
@@ -237,44 +202,52 @@ terms_are_equal :: (lterm: *Term, rterm: *Term) -> bool {
 	}
 }
 
-combine_like_terms :: (lhs: List(Term), rhs: List(Term)) -> List(Term) {
+combine_like_terms :: (lhs: [] Term, rhs: [] Term) -> [] Term {
+
+    // TODO: Use the term/coefficient scratch buffer for this
 
     // Combines terms of common basis elements into a new list of terms.
     // Example: (3+a1)e1 + (b1+4+a1)e1 = (7+2a1+b1)e1
     // Input:   (3*e1 + a1*e1) + (b1*e1 + 4*e1 + a1*e1)
     // @WASTE: There is a lot of unnecessary copying going on here...
 
-    Lterms := copy_terms(lhs);
-    Rterms := copy_terms(rhs);
-    
-    count := get_term_count(lhs);
+    // Allocate worst-case space is that none of the terms can be combined.
+    size := lhs.count + rhs.count;
+    result: [] Term;
+    result.data = alloc(size * size_of(Term));
+    result.count = lhs.count + rhs.count;
+    assert(result.data != null);
 
-    Lterm := leading_term(Lterms);
-    for i: 0..count-1 {
-        Rterm := leading_term(Rterms);
-        while Rterm != null {
-            if terms_are_equal(Lterm, Rterm) {
-                Lterm.multiples += Rterm.multiples;
-                remove_term(*Rterms, Rterm);
+    Lterms := deep_copy_terms(lhs);
+    Rterms := deep_copy_terms(rhs);
+
+    k := 0;
+    for i: 0..Lterms.count-1 {
+        for j: 0..Rterms.count-1 {
+            if terms_are_equal(Lterms[i], Rterms[j]) {
+                Lterms[i].multiples += Rterms[j].multiples;
+                result[k] = Lterms[i];
+                k += 1;
+
+                remove_term(*Rterms, j);
+            
             }
-            Rterm = next_term(Rterm);
         }
-        Lterm = next_term(Lterm);
     }
 
-    // append the remaining elements from the RHS that couldn't be combined with the LHS
-    Rterm := leading_term(Rterms);
-    while Rterm != null { 
-        append_term(*Lterms, Rterm);
-        Rterm = next_term(Rterm);
+    // append the remaining elements from the RHS that could *not* be combined with the LHS.
+    // TODO: deep_copy_terms, deep_copy_term (for individual term)
+    for j: 0..Rterms.count-1 {
+        result[k] = Rterms[j];
+        k += 1;
     }
 
-    return Lterms;
+    return result;
  }
 
-term_to_string :: (list: List(Term)) -> string {
+coefficient_to_string :: (terms: [] Term) -> string {
 
-    term_to_string_helper :: (term: *Term, builder: *String_Builder) {
+    term_to_string :: (term: *Term, builder: *String_Builder) {
         if term.factors.count == 0 {
             value := tprint("%", term.value);
             append(builder, value);
@@ -301,62 +274,34 @@ term_to_string :: (list: List(Term)) -> string {
     }
 
     builder: String_Builder;
-    current := leading_term(list);
-    
-    while current.next != null {
-        term_to_string_helper(current, *builder);
+    for i: 0..terms.count-2 {
+        term_to_string(*terms[i], *builder);
         append(*builder, "+");
-        current = current.next;
     }
-    term_to_string_helper(current, *builder);
+    term_to_string(*terms[terms.count-1], *builder);
 
     return builder_to_string(*builder);
 }
 
 #scope_file
 
-copy_term :: (term: *Term) -> *Term {
-
-    // Copy of a single term.
-
-    print("Source == %\n", term);
-
-    assert(term != null);
-
-    src: *Term = term;
-    dst: *Term = alloc(size_of(Term));
-    assert(dst != null);
-
-    memcpy(dst, src, size_of(Term));
-    dst.next = null;
-
-    if src.factors.count > 0 {
-        dst.factors.data  = alloc(src.factors.count * size_of(Factor));
-        dst.factors.count = src.factors.count;
-        assert(dst.factors.data != null);
-
-        memcpy(dst.factors.data, src.factors.data, src.factors.count * size_of(Factor));
-    }
-
-    return dst;
-}
 
 term_is_number :: inline (term: *Term) -> bool { 
     return term.factors.count == 0; 
 }
 
-multiply_term :: (lhs: *Term, rhs: *Term) -> *Term {
+multiply_term :: (lhs: *Term, rhs: *Term) -> Term {
 
     // Multiply single terms together.
 
-    result: *Term = null;
+    result: Term;
     if term_is_number(lhs) {
-        result = copy_term(rhs);
+        result = rhs;                   // TODO: Maybe shallow copy isn't right?
         result.multiples *= lhs.value;
     }
     else
     if term_is_number(rhs) {
-        result = copy_term(lhs);
+        result = lhs;                   // TODO: Maybe shallow copy isn't right?
         result.multiples *= rhs.value;
     }
     else {
@@ -364,7 +309,6 @@ multiply_term :: (lhs: *Term, rhs: *Term) -> *Term {
         result.factors = combine_factors(lhs.factors, rhs.factors);
     }
 
-    assert(result != null);
     return result;
 }
 
