@@ -49,7 +49,7 @@ Variable_Node :: struct {
 Element_Node :: struct {
     #as using _kind: Ast_Node;
 
-	coefficient: [] Term;
+	coefficient:  Coefficient;
 	basis:       *Basis_Element;
 }
 
@@ -120,7 +120,7 @@ new_variable_node :: (node_id: u16, name: string) -> *Variable_Node {
     return node;
 }
 
-new_element_node :: (node_id: u16, coefficient: [] Term, basis_element: *Basis_Element) -> *Element_Node {
+new_element_node :: (node_id: u16, coefficient: Coefficient, basis_element: *Basis_Element) -> *Element_Node {
 
     node: *Element_Node = alloc(size_of(Element_Node));
     assert(node != null);
@@ -176,7 +176,7 @@ free_node :: (node: *Ast_Node) {
 
     if node.kind == .Element {
         src := cast(*Element_Node)node;
-        free_terms(src.coefficient);
+        free_coefficient(src.coefficient);
         free(src);
     }
     else

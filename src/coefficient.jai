@@ -48,39 +48,38 @@ initialize_coefficients :: () {
     return;
 }
 
-ZERO :: () -> Coefficient {
+zero :: () -> Coefficient {
     return coefficient_zero;
 }
 
-ONE :: () -> Coefficient {
+one :: () -> Coefficient {
     return coefficient_one;
 } 
 
-coefficient_contains_no_terms :: inline (terms: [] Term) -> bool {
-    return terms.count == 0;
+coefficient_contains_no_terms :: inline (coefficient: Coefficient) -> bool {
+    return coefficient.terms.count == 0;
 }
 
-remove_term :: inline (terms: *[] Term, index: int) {
+remove_term :: inline (coefficient: *Coefficient, index: int) {
 
     // Swap the term to remove with the end and decrement the count.
     // This reorders the terms but doesn't impact the result. Factors have to stay in order but terms don't.
-    assert(terms.count > 0);
+    assert(coefficient.terms.count > 0);
 
-    terms[index] = terms[terms.count-1];
-    terms.count -= 1;
+    coefficient.terms[index] = coefficient.terms[coefficient.terms.count-1];
+    coefficient.terms.count -= 1;
 
     return;
 }
 
-new_coefficient :: (value: float) -> [] Term {
+new_coefficient :: (value: float) -> Coefficient {
 
-    // TODO: Make this a coefficient that refers to other terms! coefficient.terms.data 
-    terms: [] Term;
-    terms.data = alloc(1*size_of(Term));
-    terms.count = 1;
+    coefficient: Coefficient; 
+    coefficient.terms.data = alloc(1*size_of(Term));
+    coefficient.terms.count = 1;
 
-    terms[0] = new_term(value);
-    return terms;
+    coefficient.terms[0] = new_term(value);
+    return coefficient;
 }
 
 new_term :: (value: float) -> Term {
@@ -90,14 +89,14 @@ new_term :: (value: float) -> Term {
     return term;
 }
 
-new_coefficient :: (multiples: float, exponent: s16, scalar_variable: string) -> [] Term {
+new_coefficient :: (multiples: float, exponent: s16, scalar_variable: string) -> Coefficient {
 
-    terms: [] Term;
-    terms.data = alloc(1*size_of(Term));
-    terms.count = 1;
+    coefficient: Coefficient;
+    coefficient.terms.data = alloc(1*size_of(Term));
+    coefficient.terms.count = 1;
 
-    terms[0] = new_term(multiples, exponent, scalar_variable);
-    return terms;
+    coefficient.terms[0] = new_term(multiples, exponent, scalar_variable);
+    return coefficient;
 }
 
 new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> Term {
@@ -117,15 +116,17 @@ new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> Term {
     return term;
 }
 
-deep_copy_terms :: (source: [] Term) -> [] Term {
+deep_copy_terms :: (source: Coefficient) -> Coefficient {
+
+    // TODO: This isn't copying factors (numerators and denominators!) does it need to?
 
     // Copy all the terms from the source list into the destination list.
-    destination: [] Term;
-    destination.data  = alloc(source.count * size_of(Term));
-    destination.count = source.count; 
-    assert(destination.data != null);
+    destination: Coefficient;
+    destination.terms.data  = alloc(source.terms.count * size_of(Term));
+    destination.terms.count = source.terms.count; 
+    assert(destination.terms.data != null);
 
-    memcpy(destination.data, source.data, source.count * size_of(Term));
+    memcpy(destination.terms.data, source.terms.data, source.terms.count * size_of(Term));
 
     return destination;
 }
@@ -142,21 +143,22 @@ free_term :: (source: *Term) {
     return;
 }
 
-free_terms :: (terms: [] Term) {
+free_coefficient :: (coefficient: Coefficient) {
 
     // Deallocate buffer storing the terms.
-    free(terms.data);
+    // TODO: Should this free the numerators and denominators?
+    free(coefficient.terms.data);
     return;
 }
 
-scale_coefficient :: (terms: [] Term, s: float) {
+scale_coefficient :: (coefficient: Coefficient, s: float) {
 
-    for *term: terms {
+    for *term: coefficient.terms {
         term.multiples *= s;
     }
 }
 
-multiply_coefficients :: (lhs: [] Term, rhs: [] Term) -> [] Term {
+multiply_coefficients :: (lhs: Coefficient, rhs: Coefficient) -> Coefficient {
 
     /*
         Distribute scalar (and scalar variables).
@@ -175,15 +177,15 @@ multiply_coefficients :: (lhs: [] Term, rhs: [] Term) -> [] Term {
 
     scratch: [..] Term;
 
-    for i: 0..lhs.count-1 {
-        for j: 0..rhs.count-1 {
-            product := multiply_term(*lhs[i], *rhs[j]);
+    for i: 0..lhs.terms.count-1 {
+        for j: 0..rhs.terms.count-1 {
+            product := multiply_term(*lhs.terms[i], *rhs.terms[j]);
             array_add(*scratch, product);
         }
     }
 
-    result: [] Term;
-    result = scratch;
+    result: Coefficient;
+    result.terms = scratch;
     return result;
 }
 
@@ -202,7 +204,7 @@ terms_are_equal :: (lterm: Term, rterm: Term) -> bool {
 	}
 }
 
-combine_like_terms :: (lhs: [] Term, rhs: [] Term) -> [] Term {
+combine_like_terms :: (lhs: Coefficient, rhs: Coefficient) -> Coefficient {
 
     // TODO: Use the term/coefficient scratch buffer for this
 
@@ -212,24 +214,24 @@ combine_like_terms :: (lhs: [] Term, rhs: [] Term) -> [] Term {
     // @WASTE: There is a lot of unnecessary copying going on here...
 
     // Allocate worst-case space is that none of the terms can be combined.
-    size := lhs.count + rhs.count;
-    result: [] Term;
-    result.data = alloc(size * size_of(Term));
-    result.count = lhs.count + rhs.count;
-    assert(result.data != null);
+    size := lhs.terms.count + rhs.terms.count;
+    result: Coefficient;
+    result.terms.data = alloc(size * size_of(Term));
+    result.terms.count = lhs.terms.count + rhs.terms.count;
+    assert(result.terms.data != null);
 
-    Lterms := deep_copy_terms(lhs);
-    Rterms := deep_copy_terms(rhs);
+    left  := deep_copy_terms(lhs);
+    right := deep_copy_terms(rhs);
 
     k := 0;
-    for i: 0..Lterms.count-1 {
-        for j: 0..Rterms.count-1 {
-            if terms_are_equal(Lterms[i], Rterms[j]) {
-                Lterms[i].multiples += Rterms[j].multiples;
-                result[k] = Lterms[i];
+    for i: 0..left.terms.count-1 {
+        for j: 0..right.terms.count-1 {
+            if terms_are_equal(left.terms[i], right.terms[j]) {
+                left.terms[i].multiples += right.terms[j].multiples;
+                result.terms[k] = left.terms[i];
                 k += 1;
 
-                remove_term(*Rterms, j);
+                remove_term(*right, j);
             
             }
         }
@@ -237,15 +239,15 @@ combine_like_terms :: (lhs: [] Term, rhs: [] Term) -> [] Term {
 
     // append the remaining elements from the RHS that could *not* be combined with the LHS.
     // TODO: deep_copy_terms, deep_copy_term (for individual term)
-    for j: 0..Rterms.count-1 {
-        result[k] = Rterms[j];
+    for j: 0..right.terms.count-1 {
+        result.terms[k] = right.terms[j];
         k += 1;
     }
 
     return result;
  }
 
-coefficient_to_string :: (terms: [] Term) -> string {
+coefficient_to_string :: (coefficient: Coefficient) -> string {
 
     term_to_string :: (term: *Term, builder: *String_Builder) {
         if term.factors.count == 0 {
@@ -274,11 +276,12 @@ coefficient_to_string :: (terms: [] Term) -> string {
     }
 
     builder: String_Builder;
-    for i: 0..terms.count-2 {
-        term_to_string(*terms[i], *builder);
+    count := coefficient.terms.count;
+    for i: 0..count-2 {
+        term_to_string(*coefficient.terms[i], *builder);
         append(*builder, "+");
     }
-    term_to_string(*terms[terms.count-1], *builder);
+    term_to_string(*coefficient.terms[count-1], *builder);
 
     return builder_to_string(*builder);
 }

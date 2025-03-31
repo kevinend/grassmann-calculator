@@ -79,7 +79,7 @@ simplify :: (ast: Ast) -> Ast {
 
 reset_scratch :: () {
 
-    memset(scratch.buffer.data, 0,  MAX_NUMBER_OF_BASIS_ELEMENTS * size_of([] Term));
+    memset(scratch.buffer.data, 0,  MAX_NUMBER_OF_BASIS_ELEMENTS * size_of(Coefficient));
     scratch.populated_count = 0;
 
     return;
@@ -108,7 +108,7 @@ Scratch :: struct {
 
     */
 
-    buffer:          [MAX_NUMBER_OF_BASIS_ELEMENTS] [] Term;
+    buffer:          [MAX_NUMBER_OF_BASIS_ELEMENTS] Coefficient;
     populated_slots: [MAX_NUMBER_OF_BASIS_ELEMENTS] int;
     populated_count: int;
 }
@@ -307,7 +307,7 @@ sum :: (node: *Ast_Node) {
     if node.kind == .Element {
         element := cast(*Element_Node)node;
 
-        result: [] Term;
+        result: Coefficient;
 
         coefficient := scratch.buffer[element.basis.bitset];
         if coefficient_contains_no_terms(coefficient) {
@@ -335,8 +335,8 @@ sum :: (node: *Ast_Node) {
 
 scratch_to_ast :: () -> *Ast_Node {
 
-    bitset:       int     = 0;
-    coefficient:  [] Term = ---;
+    bitset:       int           = 0;
+    coefficient:  Coefficient   = zero();
     basis:       *Basis_Element = null;
 
     if scratch.populated_count == 1 {
