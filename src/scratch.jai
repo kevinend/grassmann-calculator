@@ -123,31 +123,6 @@ store_then_load_coefficient :: (working_set: *Working_Set, coefficient: Coeffici
     return *working_set.coefficient;
 }
 
-update_scratch_coefficient :: (coefficient: *Coefficient, src: *Term) #no_abc {
-
-    // Coefficient belongs to the scratch space. Add the new term to the list of terms.
-    // 
-    // #no_abc is set to handle when the coefficient has zero terms.
-    // Each coefficient in scratch space points to valid memory but the terms.count == 0 so you can't index the array view without the #no_abc.
-
-    assert(coefficient.terms.count < MAX_TERMS_PER_COEFFICIENT);
-
-    i   :=  coefficient.terms.count;
-    dst := *coefficient.terms[i];
-
-    memcpy(dst, src, size_of(Term));
-  
-    // Copy the term's factors and denominators.
-    memcpy(dst.numerators.data,   src.numerators.data,   src.numerators.count   * size_of(Factor));
-    memcpy(dst.denominators.data, src.denominators.data, src.denominators.count * size_of(Factor));
-
-    dst.numerators.count   = src.numerators.count;
-    dst.denominators.count = src.denominators.count;
-
-    coefficient.terms.count += 1;
-    return;
-}
-
 mark_coefficient_populated :: (scratch: *Scratch, index: int) {
 
     scratch.populated_slots[scratch.populated_count] = index;

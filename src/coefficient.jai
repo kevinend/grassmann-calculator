@@ -193,6 +193,32 @@ terms_are_equal :: (lterm: Term, rterm: Term) -> bool {
 	}
 }
 
+append_term :: (coefficient: *Coefficient, src: *Term) #no_abc {
+
+    // Add the term to the list of terms belonging to the coefficient.
+    // Coefficient *must* belong to the scratch space!
+    // 
+    // #no_abc is set to handle when the coefficient has zero terms.
+    // Each coefficient in scratch space points to valid memory but the terms.count == 0 so you can't index the array view without the #no_abc.
+
+    assert(coefficient.terms.count < MAX_TERMS_PER_COEFFICIENT);
+
+    i   :=  coefficient.terms.count;
+    dst := *coefficient.terms[i];
+
+    memcpy(dst, src, size_of(Term));
+  
+    // Copy the term's factors and denominators.
+    memcpy(dst.numerators.data,   src.numerators.data,   src.numerators.count   * size_of(Factor));
+    memcpy(dst.denominators.data, src.denominators.data, src.denominators.count * size_of(Factor));
+
+    dst.numerators.count   = src.numerators.count;
+    dst.denominators.count = src.denominators.count;
+
+    coefficient.terms.count += 1;
+    return;
+}
+
 sum_coefficients :: (lhs: *Coefficient, rhs: *Coefficient) {
 
     // The LHS comes from the scratch space for the current basis element.
@@ -215,10 +241,9 @@ sum_coefficients :: (lhs: *Coefficient, rhs: *Coefficient) {
     assert((lhs.terms.count + rhs.terms.count) <= MAX_TERMS_PER_COEFFICIENT);
 
     for j: 0..rhs.terms.count-1 {
-        update_scratch_coefficient(lhs, *rhs.terms[j]);
+        append_term(lhs, *rhs.terms[j]);
     }
 }
-
 
 coefficient_to_string :: (coefficient: Coefficient) -> string {
 
