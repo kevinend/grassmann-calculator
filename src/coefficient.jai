@@ -193,7 +193,7 @@ terms_are_equal :: (lterm: Term, rterm: Term) -> bool {
 	}
 }
 
-combine_like_terms :: (lhs: *Coefficient, rhs: *Coefficient) {
+sum_coefficients :: (lhs: *Coefficient, rhs: *Coefficient) {
 
     // The LHS comes from the scratch space for the current basis element.
     // The RHS is copied into the working set space for the current calculation.
@@ -202,26 +202,21 @@ combine_like_terms :: (lhs: *Coefficient, rhs: *Coefficient) {
     // Since RHS was copied into the working set memory you *can* mutate it without impacting the original coefficient
     // from the AST.
 
-    Lterms := lhs.terms;
-    Rterms := rhs.terms;
-
-    for i: 0..Lterms.count-1 {
-        for j: 0..Rterms.count-1 {
-            if terms_are_equal(Lterms[i], Rterms[j]) {
-                Lterms[i].multiples += Rterms[j].multiples;
-                remove_term(rhs, j); // TODO: Does this actually cut the iterations?
+    for i: 0..lhs.terms.count-1 {
+        for j: 0..rhs.terms.count-1 {
+            if terms_are_equal(lhs.terms[i], rhs.terms[j]) {
+                lhs.terms[i].multiples += rhs.terms[j].multiples;
+                remove_term(rhs, j);
             }
         }
     }
 
     // Append the remaining terms from the RHS that could *not* be combined with the LHS.
-    assert((Lterms.count + Rterms.count) <= MAX_TERMS_PER_COEFFICIENT);
+    assert((lhs.terms.count + rhs.terms.count) <= MAX_TERMS_PER_COEFFICIENT);
 
-    for j: 0..Rterms.count-1 {
-        update_scratch_coefficient(lhs, *Rterms[j]);
+    for j: 0..rhs.terms.count-1 {
+        update_scratch_coefficient(lhs, *rhs.terms[j]);
     }
-
-    return;
 }
 
 

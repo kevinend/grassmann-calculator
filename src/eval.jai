@@ -280,11 +280,11 @@ sum :: (node: *Ast_Node, scratch: *Scratch) {
         rhs := store_then_load_coefficient(*scratch.working_set, element.coefficient);
 
         if number_of_terms(lhs) == 0 {
-            combine_like_terms(lhs, rhs);
+            sum_coefficients(lhs, rhs);
             mark_coefficient_populated(scratch, element.basis.bitset);
         }
         else {
-            combine_like_terms(lhs, rhs);
+            sum_coefficients(lhs, rhs);
         }
     }
     else

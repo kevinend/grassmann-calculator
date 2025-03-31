@@ -132,7 +132,7 @@ update_scratch_coefficient :: (coefficient: *Coefficient, src: *Term) #no_abc {
 
     assert(coefficient.terms.count < MAX_TERMS_PER_COEFFICIENT);
 
-    i   := coefficient.terms.count;
+    i   :=  coefficient.terms.count;
     dst := *coefficient.terms[i];
 
     memcpy(dst, src, size_of(Term));
