@@ -56,19 +56,23 @@ one :: () -> Coefficient {
     return coefficient_one;
 } 
 
-coefficient_contains_no_terms :: inline (coefficient: Coefficient) -> bool {
-    return coefficient.terms.count == 0;
+number_of_terms :: inline (coefficient: Coefficient) -> int {
+    return coefficient.terms.count;
 }
 
 remove_term :: inline (coefficient: *Coefficient, index: int) {
 
     // Swap the term to remove with the end and decrement the count.
     // This reorders the terms but doesn't impact the result. Factors have to stay in order but terms don't.
+
     assert(coefficient.terms.count > 0);
 
-    coefficient.terms[index] = coefficient.terms[coefficient.terms.count-1];
-    coefficient.terms.count -= 1;
+    if index != coefficient.terms.count-1 && coefficient.terms.count != 1 {
+        // Swap terms if you aren't the last term or the number of terms isn't one.
+        coefficient.terms[index] = coefficient.terms[coefficient.terms.count-1];
+    }
 
+    coefficient.terms.count -= 1;
     return;
 }
 
@@ -114,21 +118,6 @@ new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> Term {
     term.factors.count = 1;
 
     return term;
-}
-
-deep_copy_terms :: (source: Coefficient) -> Coefficient {
-
-    // TODO: This isn't copying factors (numerators and denominators!) does it need to?
-
-    // Copy all the terms from the source list into the destination list.
-    destination: Coefficient;
-    destination.terms.data  = alloc(source.terms.count * size_of(Term));
-    destination.terms.count = source.terms.count; 
-    assert(destination.terms.data != null);
-
-    memcpy(destination.terms.data, source.terms.data, source.terms.count * size_of(Term));
-
-    return destination;
 }
 
 free_term :: (source: *Term) {
@@ -204,48 +193,37 @@ terms_are_equal :: (lterm: Term, rterm: Term) -> bool {
 	}
 }
 
-combine_like_terms :: (lhs: Coefficient, rhs: Coefficient) -> Coefficient {
+combine_like_terms :: (lhs: *Coefficient, rhs: *Coefficient) {
 
-    // TODO: Use the term/coefficient scratch buffer for this
+    // The LHS comes from the scratch space for the current basis element.
+    // The RHS is copied into the working set space for the current calculation.
+    // Combine the results from the LHS with the RHS by updating and appending to the LHS in the scratch space.
+    //
+    // Since RHS was copied into the working set memory you *can* mutate it without impacting the original coefficient
+    // from the AST.
 
-    // Combines terms of common basis elements into a new list of terms.
-    // Example: (3+a1)e1 + (b1+4+a1)e1 = (7+2a1+b1)e1
-    // Input:   (3*e1 + a1*e1) + (b1*e1 + 4*e1 + a1*e1)
-    // @WASTE: There is a lot of unnecessary copying going on here...
+    Lterms := lhs.terms;
+    Rterms := rhs.terms;
 
-    // Allocate worst-case space is that none of the terms can be combined.
-    size := lhs.terms.count + rhs.terms.count;
-    result: Coefficient;
-    result.terms.data = alloc(size * size_of(Term));
-    result.terms.count = lhs.terms.count + rhs.terms.count;
-    assert(result.terms.data != null);
-
-    left  := deep_copy_terms(lhs);
-    right := deep_copy_terms(rhs);
-
-    k := 0;
-    for i: 0..left.terms.count-1 {
-        for j: 0..right.terms.count-1 {
-            if terms_are_equal(left.terms[i], right.terms[j]) {
-                left.terms[i].multiples += right.terms[j].multiples;
-                result.terms[k] = left.terms[i];
-                k += 1;
-
-                remove_term(*right, j);
-            
+    for i: 0..Lterms.count-1 {
+        for j: 0..Rterms.count-1 {
+            if terms_are_equal(Lterms[i], Rterms[j]) {
+                Lterms[i].multiples += Rterms[j].multiples;
+                remove_term(rhs, j); // TODO: Does this actually cut the iterations?
             }
         }
     }
 
-    // append the remaining elements from the RHS that could *not* be combined with the LHS.
-    // TODO: deep_copy_terms, deep_copy_term (for individual term)
-    for j: 0..right.terms.count-1 {
-        result.terms[k] = right.terms[j];
-        k += 1;
+    // Append the remaining terms from the RHS that could *not* be combined with the LHS.
+    assert((Lterms.count + Rterms.count) <= MAX_TERMS_PER_COEFFICIENT);
+
+    for j: 0..Rterms.count-1 {
+        update_scratch_coefficient(lhs, *Rterms[j]);
     }
 
-    return result;
- }
+    return;
+}
+
 
 coefficient_to_string :: (coefficient: Coefficient) -> string {
 

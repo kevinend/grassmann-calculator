@@ -36,9 +36,9 @@
 
 #scope_export
 
-simplify_and_assign :: (ast: Ast, user_variables: *Table(string, *Ast_Node)) {
+simplify_and_assign :: (ast: Ast, user_variables: *Table(string, *Ast_Node), scratch: *Scratch) {
 
-    reset_scratch();
+    reset_scratch_space(scratch);
 
     assignment_node := cast(*Binary_Operator_Node)ast.root;
 
@@ -49,40 +49,32 @@ simplify_and_assign :: (ast: Ast, user_variables: *Table(string, *Ast_Node)) {
     eval_context.allocator = temp;
     push_context eval_context {
         partial_result := eval(expression);
-        sum(partial_result);
+        sum(partial_result, scratch);
     }
 
     // AST assigned to the variable is allocated in the heap.
-    value := scratch_to_ast();
+    value := scratch_to_ast(scratch);
     update_or_insert_variables(variable.name, value, user_variables);
 
     return;
 }
 
-simplify :: (ast: Ast) -> Ast {
+simplify :: (ast: Ast, scratch: *Scratch) -> Ast {
 
     output: Ast;
     
-    reset_scratch();
+    reset_scratch_space(scratch);
 
     expression   := ast.root;
     eval_context := context;
     eval_context.allocator = temp;
     push_context eval_context {
         partial_result := eval(expression);
-        sum(partial_result);
-        output.root = scratch_to_ast();
+        sum(partial_result, scratch);
+        output.root = scratch_to_ast(scratch);
     }
     
     return output;
-}
-
-reset_scratch :: () {
-
-    memset(scratch.buffer.data, 0,  MAX_NUMBER_OF_BASIS_ELEMENTS * size_of(Coefficient));
-    scratch.populated_count = 0;
-
-    return;
 }
 
 #scope_file
@@ -91,29 +83,6 @@ Complement_Type :: enum {
     Left;
     Right;
 }
-
-Scratch :: struct {
-
-    /*
-        Scratch space is used to sum the tree nodes after evaluation of all other operations since
-        the same basis element can be spread across different branches and depth of the tree.
-        
-        Each basis element is represented with a unique bitset we can use that as a unique index 
-        into the scratch buffer. So we traverse the tree and 'flatten' each basis element into its location in the buffer
-        and calculate the sum of coefficients for each basis element remaining in the tree at that index. This generates
-        the final coefficient of the basis element.
-
-        Once that's completed the scratch buffer is used to reconstruct the simplified tree back into an AST representation
-        that can be stored as a variable's value as part of an assignment and used in subsequent expressions.
-
-    */
-
-    buffer:          [MAX_NUMBER_OF_BASIS_ELEMENTS] Coefficient;
-    populated_slots: [MAX_NUMBER_OF_BASIS_ELEMENTS] int;
-    populated_count: int;
-}
-
-scratch: Scratch;
 
 eval :: (node: *Ast_Node) -> *Ast_Node {
 
@@ -301,83 +270,67 @@ does_product_anticommute :: (lhs: int, rhs: int) -> bool {
     return (swaps % 2 != 0);
 }
 
-sum :: (node: *Ast_Node) {
-    
-    // search the AST for basis elements and add each into it's location in the scratch buffer.
+
+sum :: (node: *Ast_Node, scratch: *Scratch) {
+
     if node.kind == .Element {
         element := cast(*Element_Node)node;
 
-        result: Coefficient;
+        lhs := load_coefficient(scratch, element.basis.bitset);
+        rhs := store_then_load_coefficient(*scratch.working_set, element.coefficient);
 
-        coefficient := scratch.buffer[element.basis.bitset];
-        if coefficient_contains_no_terms(coefficient) {
-            // first time during the current expression evaluation where we've encountered this basis element in the tree.
-            result = deep_copy_terms(element.coefficient);
-            scratch.populated_slots[scratch.populated_count] = element.basis.bitset;
-            scratch.populated_count += 1;
+        if number_of_terms(lhs) == 0 {
+            combine_like_terms(lhs, rhs);
+            mark_coefficient_populated(scratch, element.basis.bitset);
         }
         else {
-            result = combine_like_terms(coefficient, element.coefficient);
+            combine_like_terms(lhs, rhs);
         }
-        scratch.buffer[element.basis.bitset] = result;
     }
     else
     if node.kind == .Binary_Operator {
         binary_op := cast(*Binary_Operator_Node)node;
         assert(binary_op.op == .Addition);
 
-        sum(binary_op.lhs);
-        sum(binary_op.rhs);
+        sum(binary_op.lhs, scratch);
+        sum(binary_op.rhs, scratch);
     }
+
+
+    /* This is the previous sum, leaving for now!
+
+        // search the AST for basis elements and add each into it's location in the scratch buffer.
+        if node.kind == .Element {
+            element := cast(*Element_Node)node;
+
+            result: Coefficient;
+
+            coefficient := scratch.buffer[element.basis.bitset];
+            if coefficient_contains_no_terms(coefficient) {
+                // first time during the current expression evaluation where we've encountered this basis element in the tree.
+                result = deep_copy_terms(element.coefficient);
+                scratch.populated_slots[scratch.populated_count] = element.basis.bitset;
+                scratch.populated_count += 1;
+            }
+            else {
+                result = combine_like_terms(coefficient, element.coefficient);
+            }
+            scratch.buffer[element.basis.bitset] = result;
+        }
+        else
+        if node.kind == .Binary_Operator {
+            binary_op := cast(*Binary_Operator_Node)node;
+            assert(binary_op.op == .Addition);
+
+            sum(binary_op.lhs, scratch);
+            sum(binary_op.rhs, scratch);
+        }
+
+    */
+    
+
     
     return;
-}
-
-scratch_to_ast :: () -> *Ast_Node {
-
-    bitset:       int           = 0;
-    coefficient:  Coefficient   = zero();
-    basis:       *Basis_Element = null;
-
-    if scratch.populated_count == 1 {
-        bitset      = scratch.populated_slots[0];
-        coefficient = deep_copy_terms(scratch.buffer[bitset]);
-        basis       = get_basis_element(bitset);
-
-		root := new_element_node(0, coefficient, basis);
-        return root;
-	}
-	else {
-		root := new_binary_operator_node(0, null, .Addition, null);
-		i: int = 0;
-		current := root;
-		while i < scratch.populated_count-2 {
-            bitset      = scratch.populated_slots[i];
-            coefficient = deep_copy_terms(scratch.buffer[bitset]);
-            basis       = get_basis_element(bitset);
-
-			current.lhs = new_element_node(0, coefficient, basis);
-			next := new_binary_operator_node(0, null, .Addition, null);
-			current.rhs = next;
-			current      = next;
-
-			i += 1;
-		}
-
-        bitset       = scratch.populated_slots[i];
-        coefficient  = deep_copy_terms(scratch.buffer[bitset]);
-        basis        = get_basis_element(bitset);
-
-		current.lhs  = new_element_node(0, coefficient, basis);
-
-        bitset       = scratch.populated_slots[i+1];
-        coefficient  = deep_copy_terms(scratch.buffer[bitset]);
-        basis        = get_basis_element(bitset);
-
-		current.rhs = new_element_node(0, coefficient, basis);
-
-        return root;
-	}
 }
 
 // Utility functions for Grassmann products that operate on individual bits.

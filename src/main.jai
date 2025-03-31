@@ -117,10 +117,10 @@ main :: () {
         descend(ast.root);
 
         if ast_represents_assignment(ast) {
-            simplify_and_assign(ast, *space.user_variables);
+            simplify_and_assign(ast, *space.user_variables, *scratch);
         }
         else {
-            ast = simplify(ast);
+            ast = simplify(ast, *scratch);
             result := ast_to_string(ast);
             print("%\n", result);
         }
