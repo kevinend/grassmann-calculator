@@ -99,10 +99,12 @@ main :: () {
             continue;
         }
 
- //     descend(ast.root);
+
+/*
+        descend(ast.root);
 
         resolve_symbols(*ast, *space);
- //     descend(ast.root);
+        descend(ast.root);
 
         pass := check_semantics(*ast);
         if !pass {
@@ -124,6 +126,7 @@ main :: () {
             result := ast_to_string(ast);
             print("%\n", result);
         }
+*/
     }
 }
 
