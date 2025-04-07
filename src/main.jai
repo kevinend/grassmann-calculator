@@ -26,12 +26,11 @@ main :: () {
     default_1_elements: [] string = .["e0","e1","e2","e3"];
     default_scalar_variable_prefix_characters: string = "abcdnpqrsuvABCKLMNPQRS";
 
-    scratch: Scratch;
-
     update_exterior_space(default_dimension, default_1_elements, default_scalar_variable_prefix_characters);
     initialize_operator_tables();
     initialize_coefficients();
-    initialize_scratch_space(*scratch);
+    // TODO: initialize_working_set()
+
    
     // Variables for main loop:
     quit: bool    = false;

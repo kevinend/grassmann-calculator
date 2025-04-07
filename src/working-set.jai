@@ -17,7 +17,7 @@
 // The constants are declared to give an idea of why I chose the memory bound on the working set buffers that I did.
 
 MAX_TERMS_PER_COEFFICIENT   :: 16;
-MAX_NUMERATORS_PER_TERM     :: 16;
+MAX_NUMERATORS_PER_TERM     :: 15;
 MAX_DENOMINATORS_PER_TERM   :: 15;
 
 #assert(size_of(Term)        <= 8);
@@ -33,10 +33,8 @@ SCRATCH_BUFFER_SIZE ::
 // Total scratch space *assumes* that each and every basis element has a coefficient that uses the maximum space.
 TOTAL_SCRATCH_SPACE :: MAX_NUMBER_OF_BASIS_ELEMENTS  * SCRATCH_BUFFER_SIZE;
 
-#assert(TOTAL_SCRATCH_SPACE < 65536);
-
-
-
+#assert(SCRATCH_BUFFER_SIZE <= 2048);
+#assert(TOTAL_SCRATCH_SPACE <= 65536);
 
 
 /* TODO: Remove this code below, this is just for reference 

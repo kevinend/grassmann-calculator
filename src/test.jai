@@ -24,6 +24,55 @@ Coefficient :: struct {
 }
 
 main :: () {
+    {
+        Relative_Pointer :: struct (T: Type) {
+            offset: u16;
+        }
+
+        Factor2 :: struct {
+            exponent: s16;
+            scalar_variable: u16;
+        }
+
+        Numerator2   :: Factor2;
+        Denominator2 :: Factor2;
+
+        Term2 :: struct {
+            value: float;
+            #place value; multiples: float;
+
+            // .counts are signed to prevent underflow when using 'for i: 0..count-1' when numerators or denominators are zero.
+            numerator_count:   s8 = 0;
+            denominator_count: s8 = 0;
+            next: Relative_Pointer(Term);
+        }
+
+        Coefficient2 :: struct {
+            term_count: int;
+            terms:      *Term;
+        }
+        MAX_TERMS_PER_COEFFICIENT   :: 16;
+        MAX_NUMERATORS_PER_TERM     :: 15;
+        MAX_DENOMINATORS_PER_TERM   :: 15;
+
+        MAX_NUMBER_OF_BASIS_ELEMENTS :: 32;
+
+        #assert(size_of(Term2)        <= 8);
+        #assert(size_of(Numerator2)   <= 4);
+        #assert(size_of(Denominator2) <= 4);
+
+        // The scratch buffer stores the coefficient for a *single* basis element.
+        SCRATCH_BUFFER_SIZE :: 
+            MAX_TERMS_PER_COEFFICIENT * size_of(Term2)
+            + MAX_TERMS_PER_COEFFICIENT * (MAX_NUMERATORS_PER_TERM * size_of(Numerator2))
+            + MAX_TERMS_PER_COEFFICIENT * (MAX_DENOMINATORS_PER_TERM * size_of(Denominator2));
+
+        // Total scratch space *assumes* that each and every basis element has a coefficient that uses the maximum space.
+        TOTAL_SCRATCH_SPACE :: MAX_NUMBER_OF_BASIS_ELEMENTS  * SCRATCH_BUFFER_SIZE;
+
+        print("Scratch buffer size == %\n", SCRATCH_BUFFER_SIZE); // 2112 --> 2048
+        print("Total scratch space == %\n", TOTAL_SCRATCH_SPACE );
+    }
 
     // Just write this down:
     //  "Lines remain parallel and evenly spaced"

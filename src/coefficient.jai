@@ -51,10 +51,10 @@ coefficient_one:  Coefficient;
 
 initialize_coefficients :: () {
     coefficient_zero.terms = *term_zero;
-    coefficient_zero.terms_count = 1;
+    coefficient_zero.term_count = 1;
 
     coefficient_one.terms = *term_one;
-    coefficient_one.terms_count = 1;
+    coefficient_one.term_count = 1;
 
     return;
 }
@@ -68,6 +68,7 @@ one :: () -> Coefficient {
 }
 
 // TODO: 04.06.2025 haven't checked literally anything under here yet!
+
 
 number_of_terms :: inline (coefficient: Coefficient) -> int {
     return coefficient.terms.count;

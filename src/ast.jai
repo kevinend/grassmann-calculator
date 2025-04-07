@@ -202,6 +202,8 @@ new_intrinsic_node :: (node_id: u16, type: Intrinsic_Type) -> *Intrinsic_Node {
     return node;
 }
 
+// TODO: Review this!
+/*
 free_node :: (node: *Ast_Node) {
 
     if node.kind == .Element {
@@ -219,6 +221,8 @@ free_node :: (node: *Ast_Node) {
 
     return;
 }
+*/
+
 
 copy_node :: (node: *Ast_Node) -> *Ast_Node {
 
@@ -306,7 +310,7 @@ descend :: (ast: Ast) {
         if node.kind == .Unary_Operator {
             operator_node := cast(*Unary_Operator_Node)node;
             print("(%) Unary operator == %\n", operator_node.node_id, operator_node.op);
-            descend(operator_node.rhs, indent + 2);
+            descend_helper(operator_node.rhs, indent + 2);
         }
         else
         if node.kind == .Identifier {
@@ -334,8 +338,8 @@ descend :: (ast: Ast) {
         if node.kind == .Binary_Operator {
             binary_operator := cast(*Binary_Operator_Node)node;
             print("(%) Binary Operator == %\n", binary_operator.node_id, binary_operator.op );
-            descend(binary_operator.lhs, indent + 2);
-            descend(binary_operator.rhs, indent + 2);
+            descend_helper(binary_operator.lhs, indent + 2);
+            descend_helper(binary_operator.rhs, indent + 2);
         }
         else
         if node.kind == .Intrinsic {

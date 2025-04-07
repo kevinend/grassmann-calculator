@@ -126,7 +126,7 @@ is_operator :: (op: Operator) -> bool {
 }
 
 is_associative_operator :: (op: Operator_Type) -> bool {
-    return op == .Addition || op == .Exterior_Product || op == .Regressive_Prodcut; 
+    return (op == .Addition || op == .Exterior_Product || op == .Regressive_Product); 
 }
 
 get_operator_precedence :: (op: Operator) -> u8 {

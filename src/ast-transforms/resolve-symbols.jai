@@ -10,7 +10,7 @@
 
 #scope_export
 
-resolve_symbols :: (ast: *Ast, space: *Exterior_Space) -> bool {
+resolve_symbols :: (ast: *Ast, space: *Exterior_Space) {
 
     assert(ast      != null);
     assert(ast.root != null);
