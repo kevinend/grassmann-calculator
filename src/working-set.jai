@@ -37,6 +37,8 @@ TOTAL_SCRATCH_SPACE :: MAX_NUMBER_OF_BASIS_ELEMENTS  * SCRATCH_BUFFER_SIZE;
 
 
 
+
+
 /* TODO: Remove this code below, this is just for reference 
 Working_Set :: struct {
     // The working set represents the set of terms and factors belonging to a single basis element during evaluation.
