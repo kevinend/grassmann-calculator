@@ -1,13 +1,20 @@
 /*
-    A term represents several different forms of scalars.
-    (1) A pure number like 3
-    (2) A 'scalar-variable' like 'a1' which is a symbol representing a scalar in an expression.
-    (3) A list of 'scalar-variables' such as "a1a2a3" which represents the product of 3 scalar variables "a1", "a2", and "a3".
+    Each basis element has a coefficient which represents the 'value' of that particular basis element.
+    A coefficient is an instrusive list of terms.
+    Each term represents one of several different kinds of scalar values.
+        1. Pure numbers like 0, 1, 2, etc..
+        2. Scalar variables such as 'a1','b1','c1' which is a text symbol representing an arbitrary scalar in an expression.
+        3. Lists of scalar variables such as 'a1b1c1' which is the product of 3 scalar variables 'a1','b1', and 'c1.
 
-    A list of terms then represents sums of the above so something like "3 + a1 + b2c3"
+    Terms are 'tightly-packed'.
+    A term is followed immediately by its list of numerators then its list of denominators in that order.
 
-    The list of terms is used as a coefficient for a basis element. When that basis element
-    is grade-0 it represents the value of that 0-element.
+    This was done for several reasons:
+        1. The original implementation used the array-slice mechanism but the numerators and denominators took up 32-bytes collectively
+           just for metadata about the lists that immediately followed the term anyways.
+        2. Unlikely that any individual term in a coefficient needs more than 127 (s8) numerators or denominators.
+        3. Having term be only 8 bytes makes pure number terms like 0,1,2,3 only double the cost rather than 16 times (the Term was once 64 bytes) the size.
+        4. Having the relative pointer mechanism in the term also allows for easier serialization/deserialization to disk.
 */
 
 #scope_export
@@ -17,18 +24,22 @@ Factor :: struct {
     scalar_variable: u16;
 }
 
+Numerator   :: Factor;
+Denominator :: Factor;
+
 Term :: struct {
     value: float;
     #place value; multiples: float;
 
-    factors:      [] Factor; // TODO: Remove!
-    numerators:   [] Factor;
-    denominators: [] Factor;
-    count:   int;
+    // .counts are signed to prevent underflow when using 'for i: 0..count-1' when numerators or denominators are zero.
+    numerator_count:   s8 = 0;
+    denominator_count: s8 = 0;
+    next: Relative_Pointer(Term);
 }
 
 Coefficient :: struct {
-    terms: [] Term;
+    term_count: int;
+    terms:      *Term;
 }
 
 // Zero and one are used frequently. Instead of constantly allocating set once and reuse.
@@ -39,11 +50,11 @@ coefficient_zero: Coefficient;
 coefficient_one:  Coefficient;
 
 initialize_coefficients :: () {
-    coefficient_zero.terms.data  = *term_zero;
-    coefficient_zero.terms.count = 1;
-    
-    coefficient_one.terms.data = *term_one;
-    coefficient_one.terms.count = 1;
+    coefficient_zero.terms = *term_zero;
+    coefficient_zero.terms_count = 1;
+
+    coefficient_one.terms = *term_one;
+    coefficient_one.terms_count = 1;
 
     return;
 }
@@ -54,7 +65,9 @@ zero :: () -> Coefficient {
 
 one :: () -> Coefficient {
     return coefficient_one;
-} 
+}
+
+// TODO: 04.06.2025 haven't checked literally anything under here yet!
 
 number_of_terms :: inline (coefficient: Coefficient) -> int {
     return coefficient.terms.count;
@@ -78,7 +91,7 @@ remove_term :: inline (coefficient: *Coefficient, index: int) {
 
 new_coefficient :: (value: float) -> Coefficient {
 
-    coefficient: Coefficient; 
+    coefficient: Coefficient;
     coefficient.terms.data = alloc(1*size_of(Term));
     coefficient.terms.count = 1;
 
@@ -179,7 +192,7 @@ multiply_coefficients :: (lhs: Coefficient, rhs: Coefficient) -> Coefficient {
 }
 
 terms_are_equal :: (lterm: Term, rterm: Term) -> bool {
-    
+
 	// Terms are equal when the following conditions are true.
 	//  1. Each term contains the same number of factors (even if the count is zero).
 	//  2. Each term contains the same factors in the same order.
@@ -197,7 +210,7 @@ append_term :: (coefficient: *Coefficient, src: *Term) #no_abc {
 
     // Add the term to the list of terms belonging to the coefficient.
     // Coefficient *must* belong to the scratch space!
-    // 
+    //
     // #no_abc is set to handle when the coefficient has zero terms.
     // Each coefficient in scratch space points to valid memory but the terms.count == 0 so you can't index the array view without the #no_abc.
 
@@ -207,7 +220,7 @@ append_term :: (coefficient: *Coefficient, src: *Term) #no_abc {
     dst := *coefficient.terms[i];
 
     memcpy(dst, src, size_of(Term));
-  
+
     // Copy the term's factors and denominators.
     memcpy(dst.numerators.data,   src.numerators.data,   src.numerators.count   * size_of(Factor));
     memcpy(dst.denominators.data, src.denominators.data, src.denominators.count * size_of(Factor));
@@ -258,7 +271,7 @@ coefficient_to_string :: (coefficient: Coefficient) -> string {
                 multiples := tprint("%", term.multiples);
                 append(builder, multiples);
             }
-            
+
             for i: 0..term.factors.count-1 {
                 factor := term.factors[i];
                 scalar_variable := decode(factor.scalar_variable);
@@ -287,8 +300,8 @@ coefficient_to_string :: (coefficient: Coefficient) -> string {
 #scope_file
 
 
-term_is_number :: inline (term: *Term) -> bool { 
-    return term.factors.count == 0; 
+term_is_number :: inline (term: *Term) -> bool {
+    return term.factors.count == 0;
 }
 
 multiply_term :: (lhs: *Term, rhs: *Term) -> Term {

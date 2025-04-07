@@ -99,6 +99,8 @@ main :: () {
             continue;
         }
 
+        // TODO: 04.06.2025 -- Start here. Go through each transformation and make sure they are working as expected!
+
         /*  Transformations:
         --> Resolve Symbols
                ^
