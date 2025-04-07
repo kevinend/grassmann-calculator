@@ -4,13 +4,13 @@
     Also it substitutes AST nodes for already declared and defined variables.
 
     This pass does *not* validate the semantics of the AST after resolution.
-    It does generate recognize errors during resolution like undeclared identifiers or malformed scalar variables.
+    It does recognize errors during resolution like undeclared identifiers or malformed scalar variables.
     These error nodes are added in place of the identifier and will be reported during the semantic pass.
 */
 
 #scope_export
 
-resolve_symbols :: (ast: *Ast, space: *Exterior_Space) {
+resolve_symbols :: (ast: *Ast, space: *Exterior_Space) -> bool {
 
     assert(ast      != null);
     assert(ast.root != null);
@@ -101,6 +101,8 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
         unary_op := cast(*Unary_Operator_Node)node;
         unary_op.rhs = resolve(unary_op.rhs, unary_op, space);
 
+        if unary_op.rhs.kind == .Error { return unary_op.rhs; }
+
         return unary_op;
     }
     else
@@ -108,6 +110,9 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
         binary_op := cast(*Binary_Operator_Node)node;
         binary_op.lhs = resolve(binary_op.lhs, binary_op, space);
         binary_op.rhs = resolve(binary_op.rhs, binary_op, space);
+
+        if binary_op.lhs.kind == .Error { return binary_op.lhs; }
+        if binary_op.rhs.kind == .Error { return binary_op.rhs; }
 
         return binary_op;
     }

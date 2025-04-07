@@ -125,6 +125,10 @@ is_operator :: (op: Operator) -> bool {
     return op.type != .No_Op;
 }
 
+is_associative_operator :: (op: Operator_Type) -> bool {
+    return op == .Addition || op == .Exterior_Product || op == .Regressive_Prodcut; 
+}
+
 get_operator_precedence :: (op: Operator) -> u8 {
     return operator_precedence[op.type];
 }

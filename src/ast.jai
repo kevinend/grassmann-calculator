@@ -14,9 +14,10 @@ Node_Kind :: enum u32 {
     Error;
     Identifier;
     Variable;
-    Element;            // element of an exterior space
-    Unary_Operator;     // prefix/postfix operators
-    Binary_Operator;    // infix operators
+    Element;              // element of an exterior space
+    Unary_Operator;       // prefix/postfix operators
+    Binary_Operator;      // all infix operators during parsing
+    Associative_Operator; // all associative binary operators after flattening the AST
     Intrinsic;
 }
 
@@ -66,6 +67,13 @@ Binary_Operator_Node :: struct {
     rhs: *Ast_Node;
 }
 
+Associative_Operator_Node :: struct {
+    #as using _kind: Ast_Node;
+    op: Operator_Type;
+    args: [] *Ast_Node;
+}
+
+
 // Keywords get mapped to intrinsic node types.
 // Intrsics are predefined functions/commands that user's can call within an expression.
 Intrinsic_Type :: enum u8 {
@@ -77,6 +85,15 @@ Intrinsic_Type :: enum u8 {
 Intrinsic_Node :: struct {
     #as using _kind: Ast_Node;
     type: Intrinsic_Type;
+}
+
+ast_contains_error :: (ast: Ast) -> bool {
+    return ast.root.kind == .Error;
+}
+
+ast_print_error :: (ast: Ast) {
+    error := cast(*Error_Node)ast.root;
+    print("%\n", error.message);
 }
 
 ast_represents_assignment :: (ast: Ast) -> bool {
@@ -158,6 +175,19 @@ new_binary_operator_node :: (node_id: u16, lhs: *Ast_Node, op: Operator_Type, rh
     node.rhs     = rhs;
 
     return node;
+}
+
+new_associative_operator_node :: (node_id: u16, op: Operator_Type, args: [] *Ast_Node) -> *Associative_Operator_Node {
+
+    node: *Associative_Operator_Node = alloc(size_of(Associative_Operator_Node));
+    assert(node != null);
+
+    node.kind    = Node_Kind.Associative_Operator;
+    node.node_id = node_id;
+    node.op      = op;
+    node.args    = args;
+
+    return node; 
 }
 
 new_intrinsic_node :: (node_id: u16, type: Intrinsic_Type) -> *Intrinsic_Node {

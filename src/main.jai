@@ -99,6 +99,15 @@ main :: () {
             continue;
         }
 
+        resolve_symbols(*ast, *space);
+        if ast_contains_error(ast) {
+            ast_print_error(ast);
+            continue;
+        }
+
+        ast = flatten(ast);
+
+
         // TODO: 04.06.2025 -- Start here. Go through each transformation and make sure they are working as expected!
 
         /*  Transformations:
@@ -154,8 +163,9 @@ main :: () {
         resolve_symbols(*ast, *space);
         descend(ast.root);
 
-        pass := check_semantics(*ast);
-        if !pass {
+        check_semantics(*ast);
+        if ast_contains_error(ast) {
+            ast_print_error(ast);
             continue;
         }
 

@@ -13,60 +13,66 @@
 
 flatten :: (ast: Ast) -> Ast {
 
-    flattened_ast: Ast;
-    flattened_ast.type = .Flat;
-    flattened_ast.root = roll_up(ast.root);
+    output: Ast;
+
+    flatten_context := context;
+    flatten_context.allocator = temp;
+    push_context flatten_context {
+        output.root = rollup_associative_operators(ast.root);
+    }
     
-    return flattened_ast;
+    return output;
 }
 
 #scope_file
 
-roll_up :: (node: *Ast_Node) -> *Ast_Node {
+rollup_associative_operators :: (node: *Ast_Node) -> *Ast_Node {
 
     // Roll-up associative operators into a single operator node with a list of arguments.
     subtree: *Ast_Node = node;
     if node.kind == .Unary_Operator {
         unary_op := cast(*Unary_Operator_Node)node;
-        unary_op.rhs = roll_up(unary_op.rhs);
+        unary_op.rhs = rollup_associative_operators(unary_op.rhs);
     }
     else
     if node.kind == .Binary_Operator {
         binary_op := cast(*Binary_Operator_Node)node;
         if is_associative_operator(binary_op.op) {
-            lhs := roll_up(binary_op.lhs);
-            rhs := roll_up(binary_op.rhs);
+            lhs := rollup_associative_operators(binary_op.lhs);
+            rhs := rollup_associative_operators(binary_op.rhs);
 
-            args: List(*Ast_Node);
+            args: [..] *Ast_Node;
 
             // Cases:
-            // (1) lhs and rhs are rolled-up operators that match our current operator. If so, coalesce all the args together for this single operator.
-            // (2) lhs or rhs are rolled-up operators that do *not* match our current operator in that case make them arguments to our new operator node.
-            // (3) lhs or rhs were *not* rolled up in the recursive call so just add them as is to our list of arguments.
-            //
-            // Assume lhs (left) and rhs (right) are rolled-up operator nodes to minimize nested if/else.
+            //  1. lhs and rhs are rolled-up operators that match our current operator. If so, coalesce all the args together for this single operator.
+            //  2. lhs or rhs are rolled-up operators that do *not* match our current operator in that case make them arguments to our new operator node.
+            //  3. lhs or rhs were *not* rolled up in the recursive call so just add them as is to our list of arguments.
+            
+            // *Assume* lhs (left) and rhs (right) are rolled-up operator nodes to minimize nested if/else.
             left  := cast(*Associative_Operator_Node)lhs;
             right := cast(*Associative_Operator_Node)rhs;
 
             if left.kind == .Associative_Operator && left.op == binary_op.op {
-                // Same operator. Coalesce arguments.
-                arg := list_head(left.args);
-                for i: 0..list_count(left.args)-1 {
-                    list_append(*args, arg);
-                    arg = list_next(arg);
+                // Case 1. Same operator; move child arguments into this new node.
+                for i: 0..left.args.count-1 {
+                    array_add(*args, left.args[i]);
                 }
             }
-            else { list_append(*args, lhs); }
+            else { 
+                // Cases 2 and 3 for lhs. Add as an argument to our new associative operator node.
+                array_add(*args, lhs); 
+            }
 
             if right.kind == .Associative_Operator && right.op == binary_op.op {
-                // Same operator. Coalesce arguments.
-                arg := list_head(right.args);
-                for i: 0..list_count(right.args)-1 {
-                    list_append(*args, arg);
-                    arg = list_next(arg);
+                // Case 1. Same operator; move child arguments into this new node.
+                for i: 0..right.args.count-1 {
+                    array_add(*args, right.args[i]);
                 }
             }
-            else { list_append(*args, rhs); }
+            else { 
+                // Cases 2 and 3 for rhs. Add as an argument to our new associative operator node.
+                array_add(*args, rhs);
+            }
 
             subtree = new_associative_operator_node(binary_op.node_id, binary_op.op, args);
         }
