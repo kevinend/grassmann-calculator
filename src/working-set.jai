@@ -1,44 +1,43 @@
 /* 
-    Generating results for an expression *can* create a lot of temporary overhead.
-    A fixed-sized 'scratch' space is allocated on application start-up. The limits are chosen based on expected usage, primarily
-    with a Grassmann 4D space where each element in an expression is set with either the scalar 1 like '1*e1' or a single
-    scalar variable like 'a1*e1'. With the current limits expressions such as (a1+a2+a3+a4+a5+a6+a7+a8)e1 and
-    (a1a2a3a4..a16 + b1b2b3b4...b16 + c1c2c3c4...c16 + ..)e1 are possible.
-    
-    Depending on the expression, this space can sit 99% unused. It is the price of doing business. The application asserts
-    that no more than 64Kib is being allocated to the space so we know up-front the upper limit of space reserved.
-    
-    Tweaking the max number of numerator or denominator factors only affects their total usage.
-    Increasing the allowable max dimension of the space or the max number of terms allowed per coefficient *can* substantially
-    grow the required scratch space. If it needs bumped up, then so be it, but the current configuration covers my intended
-    use cases.
+    Generating results for an expression *can* create a lot of temporary/intermediate results.
+    To mitigate against this growing out of control and using an unbounded amount of memory, fixed limits
+    are imposed on the overall size of an individual coefficient belonging to a single basis element.
+
+    The working set imposes the limit and can be adjusted if we run into calculations that exceed the
+    bounds. The limit is intentionally restrictive so we can collect metrics and see what the actual
+    usage of the application looks like. It is unlikely that we will hit the upper bounds on typical
+    Grassmann calculations but we will see.
 */
 
 #scope_export
 
-MAX_TERMS_PER_COEFFICIENT   :: 8;
+// These limits don't mean that a single coefficient can *only* have 'X' number of terms. It can have way more terms but with fewer numerators and denominators.
+// If a coefficient has multiple terms with tons of numerators and denominators then the coefficient *must* have fewer overall terms. 
+// The buffer *size* is fixed not the number of individual terms, numerators or denominators. 
+// The constants are declared to give an idea of why I chose the memory bound on the working set buffers that I did.
+
+MAX_TERMS_PER_COEFFICIENT   :: 16;
 MAX_NUMERATORS_PER_TERM     :: 16;
-MAX_DENOMINATORS_PER_TERM   :: 16;
+MAX_DENOMINATORS_PER_TERM   :: 15;
 
-SCRATCH_TERMS                    :: (1                         * MAX_TERMS_PER_COEFFICIENT * MAX_NUMBER_OF_BASIS_ELEMENTS);
-SCRATCH_WORKING_SET_TERMS        :: (1                         * MAX_TERMS_PER_COEFFICIENT * 1                           );
+#assert(size_of(Term)        <= 8);
+#assert(size_of(Numerator)   <= 4);
+#assert(size_of(Denominator) <= 4);
 
-SCRATCH_NUMERATORS               :: (MAX_NUMERATORS_PER_TERM   * MAX_TERMS_PER_COEFFICIENT * MAX_NUMBER_OF_BASIS_ELEMENTS);
-SCRATCH_WORKING_SET_NUMERATORS   :: (MAX_NUMERATORS_PER_TERM   * MAX_TERMS_PER_COEFFICIENT * 1                           );
+// The scratch buffer stores the coefficient for a *single* basis element.
+SCRATCH_BUFFER_SIZE :: 
+      MAX_TERMS_PER_COEFFICIENT * size_of(Term)
+    + MAX_TERMS_PER_COEFFICIENT * (MAX_NUMERATORS_PER_TERM * size_of(Numerator))
+    + MAX_TERMS_PER_COEFFICIENT * (MAX_DENOMINATORS_PER_TERM * size_of(Denominator));
 
-SCRATCH_DENOMINATORS             :: (MAX_DENOMINATORS_PER_TERM * MAX_TERMS_PER_COEFFICIENT * MAX_NUMBER_OF_BASIS_ELEMENTS);
-SCRATCH_WORKING_SET_DENOMINATORS :: (MAX_DENOMINATORS_PER_TERM * MAX_TERMS_PER_COEFFICIENT * 1                           );
-
-TOTAL_SCRATCH_SPACE :: 
-      SCRATCH_TERMS                     * size_of(Term)
-    + SCRATCH_NUMERATORS                * size_of(Factor)
-    + SCRATCH_DENOMINATORS              * size_of(Factor)
-    + SCRATCH_WORKING_SET_TERMS         * size_of(Term)
-    + SCRATCH_WORKING_SET_NUMERATORS    * size_of(Factor)
-    + SCRATCH_WORKING_SET_DENOMINATORS  * size_of(Factor);
+// Total scratch space *assumes* that each and every basis element has a coefficient that uses the maximum space.
+TOTAL_SCRATCH_SPACE :: MAX_NUMBER_OF_BASIS_ELEMENTS  * SCRATCH_BUFFER_SIZE;
 
 #assert(TOTAL_SCRATCH_SPACE < 65536);
 
+
+
+/* TODO: Remove this code below, this is just for reference 
 Working_Set :: struct {
     // The working set represents the set of terms and factors belonging to a single basis element during evaluation.
     terms:          [SCRATCH_WORKING_SET_TERMS]         Term;
@@ -177,3 +176,5 @@ scratch_to_ast :: (scratch: *Scratch) -> *Ast_Node {
         return root;
 	}
 }
+
+*/

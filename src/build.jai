@@ -25,9 +25,9 @@ build :: () {
     add_build_file("./main.jai",                w);
     add_build_file("./operators.jai",           w);
     add_build_file("./parser.jai",              w);
-    add_build_file("./scratch.jai",             w);
     add_build_file("./stack.jai",               w);
     add_build_file("./token.jai",               w);
+    add_build_file("./working-set.jai",         w);
 
     // Ast-transform files
     add_build_file("./ast-transforms/distribute-products.jai", w);
