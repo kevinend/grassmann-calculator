@@ -99,6 +99,50 @@ main :: () {
             continue;
         }
 
+        /*  Transformations:
+        --> Resolve Symbols
+               ^
+              v  e1
+
+        -->    ^        -->    ^       -->       ^                  -->     ^
+             +    e1         +    +            +    +                      +    +
+            e1 e2         e1  e2 e3 e4     e1  e2  e3   +               e1  e2 e3 ^
+                                                     e4   e5                     e4 e5
+
+                                                    
+        --> Flatten 
+            ^                    ^               ^                          ^
+            +  e1            +      +           +       +                 +     +     
+            e1 e2           e1, e2  e3,e4       e1 e2  e3 e4 e5         [e1,e2] [e3, ^]
+                                                                                    [e4,e5]
+
+                                                                        (e1+e2) ^ (e3 + (e4 ^ e5))
+                                                                        (e1+e2)^e3 + (e1+e2)^(e4^e5)
+                                                                        
+                                                                        (e1^e3)+(e1^e2) + (e1 ^ (e4^e5)) + (e2^(e4^e5))
+                                                                        +
+                                                                        [^]     [^]      [^]        [^]
+                                                                        [e1,e3] [e1,e2]  [e1, ^]    [e2, ^]
+                                                                                             [e4,e5]    [e4,e5]
+
+                                                                        then you just build that back up
+
+
+        --> Distribute
+            +
+            ^       ^       ^       ^         ^        ^
+            [e1,e3] [e1,e4] [e1,e5] [e2,e3], [e2,e4], [e2,e5]           
+
+        // Resolve symbols (replace v ^ e1 with (e1 + e2 + e3) ^ e1)
+        // Flatten         (replace (e1 + e2 + e3) ^ e1) with
+        //                 ^
+        //                 e1 + e1 e2 e3
+        // Distribute      +
+        //                 ^
+        //
+        // Semantic Check
+        // Evaluate (simplify and simplify and assign)              
+
 
 /*
         descend(ast.root);
