@@ -61,67 +61,6 @@ get_parser_error :: (parser: *Parser) -> string {
 	return parser.error_message;
 }
 
-descend :: (node: *Ast_Node, indent: int = 0) {
-
-    // Utility function to print AST's until the interpreter is up and working!
-    if node == null {
-        return;
-    }
-
-    for i: 0..indent-1 {
-		print( " " );
-	}
-
-    if node.kind == .Error {
-        error := cast(*Error_Node)node;
-        print("(%) Error Node == %\n", error.node_id, error.message);
-    }
-    else
-    if node.kind == .Unary_Operator {
-        operator_node := cast(*Unary_Operator_Node)node;
-        print("(%) Unary operator == %\n", operator_node.node_id, operator_node.op);
-        descend(operator_node.rhs, indent + 2);
-    }
-    else
-    if node.kind == .Identifier {
-        identifier := cast(*Identifier_Node)node;
-        print("(%) Identifier == %\n", identifier.node_id, identifier.name);
-    }
-    else
-    if node.kind == .Variable {
-        var := cast(*Variable_Node)node;
-        print("(%) Variable == %\n", var.node_id, var.name);
-    }
-    else
-    if node.kind == .Element {
-        element := cast(*Element_Node)node;
-        print(
-			"(%) Element (Coefficient=%, Grade=%, Symbol=%, Bits=%)\n"
-            ,element.node_id
-            ,coefficient_to_string(element.coefficient)
-            ,element.basis.grade
-            ,element.basis.symbol
-            ,element.basis.bitset
-		);
-    }
-    else
-    if node.kind == .Binary_Operator {
-        binary_operator := cast(*Binary_Operator_Node)node;
-        print("(%) Binary Operator == %\n", binary_operator.node_id, binary_operator.op );
-        descend(binary_operator.lhs, indent + 2);
-        descend(binary_operator.rhs, indent + 2);
-    }
-    else
-    if node.kind == .Intrinsic {
-        intrinsic := cast(*Intrinsic_Node)node;
-        if intrinsic.type == {
-            case .Direction; { print("(%) Intrinsic: Direction\n", intrinsic.node_id); }
-            case .Position;  { print("(%) Intrinsic: Position\n",  intrinsic.node_id); }
-            case .Basis;     { print("(%) Intrinsic: Basis\n",     intrinsic.node_id); }
-        }
-    }
-}
-
 #scope_file
 
 Mode :: enum u8 {
@@ -233,6 +172,7 @@ parse_expression :: (parser: *Parser) -> bool, Ast {
         }
     }
 
+    // TODO: Remove these comments!
     // Valid:
     // e1 + e2 + e3
     // e1 e2 e3

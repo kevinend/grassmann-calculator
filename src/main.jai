@@ -107,6 +107,8 @@ main :: () {
 
         ast = flatten(ast);
 
+        // need to descend in here so I  can see if flatten is doing what i think it is doing.
+
 
         // TODO: 04.06.2025 -- Start here. Go through each transformation and make sure they are working as expected!
 
