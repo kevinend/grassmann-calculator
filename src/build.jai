@@ -31,7 +31,7 @@ build :: () {
     add_build_file("./working-set.jai",         w);
 
     // Ast-transform files
-    add_build_file("./ast-transforms/distribute-products.jai", w);
+    add_build_file("./ast-transforms/expand.jai",              w);
     add_build_file("./ast-transforms/flatten.jai",             w);
     add_build_file("./ast-transforms/resolve-symbols.jai",     w);
     add_build_file("./ast-transforms/semantic-check.jai",      w);

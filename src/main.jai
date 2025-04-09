@@ -45,6 +45,8 @@ main :: () {
     ast:    Ast;
 
 	while !quit {
+
+        // TODO: 04.08.2025 -- Have utility function or something to report on temp storage statistics. And call that here.
         ts := context.temporary_storage;
         if !ts {
             print("No temporary storage!\n");
@@ -56,14 +58,6 @@ main :: () {
             print("Total bytes occupied == %\n", ts.total_bytes_occupied);
             print("High water mark == %\n", ts.high_water_mark);
         }
-
-/*
-        ts.data = ts.original_data;
-        ts.size = ts.original_size;
-        ts.current_page_bytes_occupied = 0;
-        ts.total_bytes_occupied = 0;
-        ts.high_water_mark = 0;
-*/
 
         reset_temporary_storage();
         
@@ -104,65 +98,11 @@ main :: () {
             continue;
         }
 
+        ast = expand(ast);
+        descend(ast);
+
         ast = flatten(ast);
-
-        // need to descend in here so I  can see if flatten is doing what i think it is doing.
-
-
-        // TODO: 04.06.2025 -- Start here. Go through each transformation and make sure they are working as expected!
-
-        /*  Transformations:
-        --> Resolve Symbols
-               ^
-              v  e1
-
-        -->    ^        -->    ^       -->       ^                  -->     ^
-             +    e1         +    +            +    +                      +    +
-            e1 e2         e1  e2 e3 e4     e1  e2  e3   +               e1  e2 e3 ^
-                                                     e4   e5                     e4 e5
-
-                                                    
-        --> Flatten 
-            ^                    ^               ^                          ^
-            +  e1            +      +           +       +                 +     +     
-            e1 e2           e1, e2  e3,e4       e1 e2  e3 e4 e5         [e1,e2] [e3, ^]
-                                                                                    [e4,e5]
-
-                                                                        (e1+e2) ^ (e3 + (e4 ^ e5))
-                                                                        (e1+e2)^e3 + (e1+e2)^(e4^e5)
-                                                                        
-                                                                        (e1^e3)+(e1^e2) + (e1 ^ (e4^e5)) + (e2^(e4^e5))
-                                                                        +
-                                                                        [^]     [^]      [^]        [^]
-                                                                        [e1,e3] [e1,e2]  [e1, ^]    [e2, ^]
-                                                                                             [e4,e5]    [e4,e5]
-
-                                                                        then you just build that back up
-
-
-        --> Distribute
-            +
-            ^       ^       ^       ^         ^        ^
-            [e1,e3] [e1,e4] [e1,e5] [e2,e3], [e2,e4], [e2,e5]           
-
-        // Resolve symbols (replace v ^ e1 with (e1 + e2 + e3) ^ e1)
-        // Flatten         (replace (e1 + e2 + e3) ^ e1) with
-        //                 ^
-        //                 e1 + e1 e2 e3
-        // Distribute      +
-        //                 ^
-        //
-        // Semantic Check
-        // Evaluate (simplify and simplify and assign) 
-
-    */             
-
-
-/*
-        descend(ast.root);
-
-        resolve_symbols(*ast, *space);
-        descend(ast.root);
+        descend(ast);
 
         check_semantics(*ast);
         if ast_contains_error(ast) {
@@ -170,12 +110,10 @@ main :: () {
             continue;
         }
 
-        // Expand and simplify return new instances of the entire syntax tree.
-        // Cloning the nodes wastes memory but we are using the linear allocator so new nodes will be located near one another
-        // so maybe not a huge problem? 03.18.2025
 
-        ast = expand(ast);
-        descend(ast.root);
+/* 
+    04.08.2025 -- There is no more scratch space. This is called working_set, need to handle intialization and stuff.
+                  Also thinking of a separate bump allocator for the coefficient/term/numerators/denominators...
 
         if ast_represents_assignment(ast) {
             simplify_and_assign(ast, *space.user_variables, *scratch);
