@@ -50,6 +50,7 @@ coefficient_zero: Coefficient;
 coefficient_one:  Coefficient;
 
 initialize_coefficients :: () {
+
     coefficient_zero.terms = *term_zero;
     coefficient_zero.term_count = 1;
 
@@ -67,42 +68,61 @@ one :: () -> Coefficient {
     return coefficient_one;
 }
 
+get_numerators :: (term: *Term) -> [] Numerator {
+
+    numerators: [] Numerator;
+    numerators.data = cast(*Numerator)(cast(*u8)term + size_of(Term));
+    numerators.count = term.numerator_count;
+
+    return numerators;
+}
+
+get_denominators :: (term: *Term) -> [] Denominator {
+
+    denominators: [] Denominator;
+    denominators.data  = cast(*Denominator)(cast(*u8)term + size_of(Term) + (term.numerator_count * size_of(Numerator)));
+    denominators.count = term.denominator_count;
+
+    return denominators; 
+}
+
 // TODO: 04.06.2025 haven't checked literally anything under here yet!
 
 
 number_of_terms :: inline (coefficient: Coefficient) -> int {
-    return coefficient.terms.count;
+    return coefficient.term_count;
 }
 
-remove_term :: inline (coefficient: *Coefficient, index: int) {
+remove_term :: inline (coefficient: *Coefficient, index: int) { // TODO: 04.09.2025 Refactoring? needed???
 
     // Swap the term to remove with the end and decrement the count.
     // This reorders the terms but doesn't impact the result. Factors have to stay in order but terms don't.
 
-    assert(coefficient.terms.count > 0);
+    assert(coefficient.term_count > 0);
 
-    if index != coefficient.terms.count-1 && coefficient.terms.count != 1 {
+    if index != coefficient.term_count-1 && coefficient.term_count != 1 {
         // Swap terms if you aren't the last term or the number of terms isn't one.
-        coefficient.terms[index] = coefficient.terms[coefficient.terms.count-1];
+   //     coefficient.terms[index] = coefficient.terms[coefficient.term_count-1];
     }
 
-    coefficient.terms.count -= 1;
+    coefficient.term_count -= 1;
     return;
 }
 
 new_coefficient :: (value: float) -> Coefficient {
 
     coefficient: Coefficient;
-    coefficient.terms.data = alloc(1*size_of(Term));
-    coefficient.terms.count = 1;
 
-    coefficient.terms[0] = new_term(value);
+    coefficient.terms = new_term(value);
+    coefficient.term_count = 1;
     return coefficient;
 }
 
-new_term :: (value: float) -> Term {
+new_term :: (value: float) -> *Term {
 
-    term: Term;
+    term := cast(*Term)alloc(1*size_of(Term));
+    assert(term != null);
+
     term.value = value;
     return term;
 }
@@ -110,38 +130,36 @@ new_term :: (value: float) -> Term {
 new_coefficient :: (multiples: float, exponent: s16, scalar_variable: string) -> Coefficient {
 
     coefficient: Coefficient;
-    coefficient.terms.data = alloc(1*size_of(Term));
-    coefficient.terms.count = 1;
 
-    coefficient.terms[0] = new_term(multiples, exponent, scalar_variable);
+    coefficient.terms = new_term(multiples, exponent, scalar_variable);
+    coefficient.term_count = 1;
     return coefficient;
 }
 
-new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> Term {
+// TODO: Allocate in our 'Coefficient' buffer instead of temp!! 04.08.2025
+new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> *Term {
 
-    term: Term;
+    memory: *u8 = alloc(size_of(Term) + size_of(Numerator));
+    assert(memory != null);
 
+    term := cast(*Term)memory;
     term.multiples = multiples;
 
-    term.factors.data  = alloc(size_of(Factor));
-    term.factors.count = 1;
-    assert(term.factors.data != null);
-
-    term.factors[0].exponent        = exponent;
-    term.factors[0].scalar_variable = encode(scalar_variable);
-    term.factors.count = 1;
+    numerator := cast(*Numerator)(memory + size_of(Term));
+    numerator.exponent = exponent;
+    numerator.scalar_variable = encode(scalar_variable);
 
     return term;
 }
 
-free_term :: (source: *Term) {
+free_term :: (source: *Term) { // TODO: I'm not sure this is going to be a thing, just free the whole coefficient
 
     assert(source != null);
 
-    if source.factors.count > 0 {
-        free(source.factors.data);
+    if source.numerator_count > 0 {
+       // free(source.factors.data); // TODO: 04.09.2025 Refactoring!
     }
-    free(source);
+   // free(source); // TODO: 04.09.2025 Refactoring!
 
     return;
 }
@@ -150,15 +168,18 @@ free_coefficient :: (coefficient: Coefficient) {
 
     // Deallocate buffer storing the terms.
     // TODO: Should this free the numerators and denominators?
-    free(coefficient.terms.data);
+    // TODO: 04.09.2025 -- Does nothing right now!
+   // free(coefficient.terms.data);
     return;
 }
 
 scale_coefficient :: (coefficient: Coefficient, s: float) {
 
+/* TODO: Replace this with some traversal over the terms to scale each one of them.
     for *term: coefficient.terms {
         term.multiples *= s;
     }
+*/
 }
 
 multiply_coefficients :: (lhs: Coefficient, rhs: Coefficient) -> Coefficient {
@@ -180,15 +201,15 @@ multiply_coefficients :: (lhs: Coefficient, rhs: Coefficient) -> Coefficient {
 
     scratch: [..] Term;
 
-    for i: 0..lhs.terms.count-1 {
-        for j: 0..rhs.terms.count-1 {
+    for i: 0..lhs.term_count-1 {
+        for j: 0..rhs.term_count-1 {
             product := multiply_term(*lhs.terms[i], *rhs.terms[j]);
             array_add(*scratch, product);
         }
     }
 
     result: Coefficient;
-    result.terms = scratch;
+  //  result.terms = scratch; // TODO: 04.09.2025 Refactoring!
     return result;
 }
 
@@ -198,38 +219,39 @@ terms_are_equal :: (lterm: Term, rterm: Term) -> bool {
 	//  1. Each term contains the same number of factors (even if the count is zero).
 	//  2. Each term contains the same factors in the same order.
 	//  3. Each factor in the term is raised to the same power.
-	if lterm.factors.count == rterm.factors.count {
-		count := lterm.factors.count;
-		return memcmp(lterm.factors.data, rterm.factors.data, size_of(Factor) * count) == 0;
+	if lterm.numerator_count == rterm.numerator_count {
+		count := lterm.numerator_count;
+        return true; // TODO: This is obviously wrong! 04.09.2025
+        //	return memcmp(lterm.factors.data, rterm.factors.data, size_of(Factor) * count) == 0;
 	}
 	else {
 		return false;
 	}
 }
 
-append_term :: (coefficient: *Coefficient, src: *Term) #no_abc {
+append_term :: (coefficient: *Coefficient, src: *Term) #no_abc { // TODO: 04.09.2025 Refactoring. needed???
 
     // Add the term to the list of terms belonging to the coefficient.
     // Coefficient *must* belong to the scratch space!
     //
     // #no_abc is set to handle when the coefficient has zero terms.
-    // Each coefficient in scratch space points to valid memory but the terms.count == 0 so you can't index the array view without the #no_abc.
+    // Each coefficient in scratch space points to valid memory but the term_count == 0 so you can't index the array view without the #no_abc.
 
-    assert(coefficient.terms.count < MAX_TERMS_PER_COEFFICIENT);
+    assert(coefficient.term_count < MAX_TERMS_PER_COEFFICIENT);
 
-    i   :=  coefficient.terms.count;
+    i   :=  coefficient.term_count;
     dst := *coefficient.terms[i];
 
     memcpy(dst, src, size_of(Term));
 
     // Copy the term's factors and denominators.
-    memcpy(dst.numerators.data,   src.numerators.data,   src.numerators.count   * size_of(Factor));
-    memcpy(dst.denominators.data, src.denominators.data, src.denominators.count * size_of(Factor));
+  //  memcpy(dst.numerators.data,   src.numerators.data,   src.numerators.count   * size_of(Factor));
+   // memcpy(dst.denominators.data, src.denominators.data, src.denominators.count * size_of(Factor));
 
-    dst.numerators.count   = src.numerators.count;
-    dst.denominators.count = src.denominators.count;
+    dst.numerator_count   = src.numerator_count;
+    dst.denominator_count = src.denominator_count;
 
-    coefficient.terms.count += 1;
+    coefficient.term_count += 1;
     return;
 }
 
@@ -242,8 +264,8 @@ sum_coefficients :: (lhs: *Coefficient, rhs: *Coefficient) {
     // Since RHS was copied into the working set memory you *can* mutate it without impacting the original coefficient
     // from the AST.
 
-    for i: 0..lhs.terms.count-1 {
-        for j: 0..rhs.terms.count-1 {
+    for i: 0..lhs.term_count-1 {
+        for j: 0..rhs.term_count-1 {
             if terms_are_equal(lhs.terms[i], rhs.terms[j]) {
                 lhs.terms[i].multiples += rhs.terms[j].multiples;
                 remove_term(rhs, j);
@@ -252,9 +274,9 @@ sum_coefficients :: (lhs: *Coefficient, rhs: *Coefficient) {
     }
 
     // Append the remaining terms from the RHS that could *not* be combined with the LHS.
-    assert((lhs.terms.count + rhs.terms.count) <= MAX_TERMS_PER_COEFFICIENT);
+    assert((lhs.term_count + rhs.term_count) <= MAX_TERMS_PER_COEFFICIENT);
 
-    for j: 0..rhs.terms.count-1 {
+    for j: 0..rhs.term_count-1 {
         append_term(lhs, *rhs.terms[j]);
     }
 }
@@ -262,7 +284,7 @@ sum_coefficients :: (lhs: *Coefficient, rhs: *Coefficient) {
 coefficient_to_string :: (coefficient: Coefficient) -> string {
 
     term_to_string :: (term: *Term, builder: *String_Builder) {
-        if term.factors.count == 0 {
+        if term.numerator_count == 0 {
             value := tprint("%", term.value);
             append(builder, value);
         }
@@ -273,13 +295,14 @@ coefficient_to_string :: (coefficient: Coefficient) -> string {
                 append(builder, multiples);
             }
 
-            for i: 0..term.factors.count-1 {
-                factor := term.factors[i];
-                scalar_variable := decode(factor.scalar_variable);
+            numerators := get_numerators(term);
+            for i: 0..numerators.count-1 {
+                numerator := numerators[i];
+                scalar_variable := decode(numerator.scalar_variable);
                 append(builder, scalar_variable);
 
-                if factor.exponent > 1 {
-                    exponent := tprint("%", factor.exponent);
+                if numerator.exponent > 1 {
+                    exponent := tprint("%", numerator.exponent);
                     append(builder,"^");
                     append(builder, exponent);
                 }
@@ -288,7 +311,7 @@ coefficient_to_string :: (coefficient: Coefficient) -> string {
     }
 
     builder: String_Builder;
-    count := coefficient.terms.count;
+    count := coefficient.term_count;
     for i: 0..count-2 {
         term_to_string(*coefficient.terms[i], *builder);
         append(*builder, "+");
@@ -302,7 +325,7 @@ coefficient_to_string :: (coefficient: Coefficient) -> string {
 
 
 term_is_number :: inline (term: *Term) -> bool {
-    return term.factors.count == 0;
+    return term.numerator_count == 0;
 }
 
 multiply_term :: (lhs: *Term, rhs: *Term) -> Term {
@@ -321,7 +344,7 @@ multiply_term :: (lhs: *Term, rhs: *Term) -> Term {
     }
     else {
         result = new_term(lhs.multiples * rhs.multiples);
-        result.factors = combine_factors(lhs.factors, rhs.factors);
+      //  result.factors = combine_factors(lhs.factors, rhs.factors);
     }
 
     return result;

@@ -113,7 +113,7 @@ update_or_insert_variables :: (name: string, value: *Ast_Node, user_variables: *
     variable, found := table_find(user_variables, name);
     if found {
         // Recursively free's children and coefficients/terms/factors.
-        free_node(variable);
+       // free_node(variable); // TODO: 09.09.2025 - Refactoring
     }
 
     builder: String_Builder;

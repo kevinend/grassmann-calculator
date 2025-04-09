@@ -270,7 +270,6 @@ does_product_anticommute :: (lhs: int, rhs: int) -> bool {
     return (swaps % 2 != 0);
 }
 
-
 sum :: (node: *Ast_Node, scratch: *Scratch) {
 
     if node.kind == .Element {

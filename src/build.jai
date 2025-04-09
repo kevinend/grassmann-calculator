@@ -18,7 +18,7 @@ build :: () {
 
     add_build_file("./ast.jai",                 w);
     add_build_file("./coefficient.jai",         w);
-    add_build_file("./eval.jai",                w);
+ //   add_build_file("./eval.jai",                w); // TODO: 04.09 this needs refactored!
     add_build_file("./exterior-space.jai",      w);
     add_build_file("./input.jai",               w);
     add_build_file("./lexer.jai",               w);

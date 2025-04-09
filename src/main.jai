@@ -116,12 +116,12 @@ main :: () {
                   Also thinking of a separate bump allocator for the coefficient/term/numerators/denominators...
 
         if ast_represents_assignment(ast) {
-            simplify_and_assign(ast, *space.user_variables, *scratch);
+         //   simplify_and_assign(ast, *space.user_variables, *scratch);
         }
         else {
-            ast = simplify(ast, *scratch);
-            result := ast_to_string(ast);
-            print("%\n", result);
+          //  ast = simplify(ast, *scratch);
+          //  result := ast_to_string(ast);
+          //  print("%\n", result);
         }
 */
     }
