@@ -29,9 +29,8 @@ main :: () {
     update_exterior_space(default_dimension, default_1_elements, default_scalar_variable_prefix_characters);
     initialize_operator_tables();
     initialize_coefficients();
-    // TODO: initialize_working_set()
+   //  initialize_working_set() // TODO: Implement this!
 
-   
     // Variables for main loop:
     quit: bool    = false;
     USER_PROMPT :: "> ";

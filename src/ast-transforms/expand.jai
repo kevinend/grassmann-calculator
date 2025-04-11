@@ -100,7 +100,8 @@ distribute :: (node: *Ast_Node) -> *Ast_Node {
 
     subtree: *Ast_Node;
     if node.kind == .Unary_Operator {
-        unary_op := cast(*Unary_Operator_Node)node;
+        unary_op    := cast(*Unary_Operator_Node)node;
+        unary_op.rhs = distribute(unary_op.rhs);
     
         // Unary operators do *not* need distributed over Grassmann products.
         // complement(e1^e2) will be a complement operation over the exterior product of e1 and e2, it should not distribute.
@@ -125,6 +126,8 @@ distribute :: (node: *Ast_Node) -> *Ast_Node {
     else
     if node.kind == .Binary_Operator {
         binary_op := cast(*Binary_Operator_Node)node;
+        binary_op.lhs = distribute(binary_op.lhs);
+        binary_op.rhs = distribute(binary_op.rhs);
 
         if binary_op.op == .Exterior_Product || binary_op.op == .Regressive_Product || binary_op.op == .Scalar_Multiplication {
             product_op := binary_op;

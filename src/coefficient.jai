@@ -38,11 +38,12 @@ Term :: struct {
 }
 
 Coefficient :: struct {
-    term_count: int;
     terms:      *Term;
+    term_count:  int;
+    byte_size:   int;
 }
 
-// Zero and one are used frequently. Instead of constantly allocating set once and reuse.
+// Set once and reuse.
 term_zero :: Term.{ value = 0 };
 term_one  :: Term.{ value = 1 };
 
@@ -53,9 +54,11 @@ initialize_coefficients :: () {
 
     coefficient_zero.terms = *term_zero;
     coefficient_zero.term_count = 1;
+    coefficient_zero.byte_size  = size_of(Term);
 
     coefficient_one.terms = *term_one;
     coefficient_one.term_count = 1;
+    coefficient_one.byte_size  = size_of(Term);
 
     return;
 }
@@ -68,56 +71,6 @@ one :: () -> Coefficient {
     return coefficient_one;
 }
 
-get_numerators :: (term: *Term) -> [] Numerator {
-
-    numerators: [] Numerator;
-    numerators.data = cast(*Numerator)(cast(*u8)term + size_of(Term));
-    numerators.count = term.numerator_count;
-
-    return numerators;
-}
-
-get_denominators :: (term: *Term) -> [] Denominator {
-
-    denominators: [] Denominator;
-    denominators.data  = cast(*Denominator)(cast(*u8)term + size_of(Term) + (term.numerator_count * size_of(Numerator)));
-    denominators.count = term.denominator_count;
-
-    return denominators; 
-}
-
-// TODO: 04.06.2025 haven't checked literally anything under here yet!
-
-
-number_of_terms :: inline (coefficient: Coefficient) -> int {
-    return coefficient.term_count;
-}
-
-remove_term :: inline (coefficient: *Coefficient, index: int) { // TODO: 04.09.2025 Refactoring? needed???
-
-    // Swap the term to remove with the end and decrement the count.
-    // This reorders the terms but doesn't impact the result. Factors have to stay in order but terms don't.
-
-    assert(coefficient.term_count > 0);
-
-    if index != coefficient.term_count-1 && coefficient.term_count != 1 {
-        // Swap terms if you aren't the last term or the number of terms isn't one.
-   //     coefficient.terms[index] = coefficient.terms[coefficient.term_count-1];
-    }
-
-    coefficient.term_count -= 1;
-    return;
-}
-
-new_coefficient :: (value: float) -> Coefficient {
-
-    coefficient: Coefficient;
-
-    coefficient.terms = new_term(value);
-    coefficient.term_count = 1;
-    return coefficient;
-}
-
 new_term :: (value: float) -> *Term {
 
     term := cast(*Term)alloc(1*size_of(Term));
@@ -127,12 +80,14 @@ new_term :: (value: float) -> *Term {
     return term;
 }
 
-new_coefficient :: (multiples: float, exponent: s16, scalar_variable: string) -> Coefficient {
+new_coefficient :: (value: float) -> Coefficient {
 
     coefficient: Coefficient;
 
-    coefficient.terms = new_term(multiples, exponent, scalar_variable);
+    coefficient.terms = new_term(value);
     coefficient.term_count = 1;
+    coefficient.byte_size  = size_of(Term);
+
     return coefficient;
 }
 
@@ -152,26 +107,36 @@ new_term :: (multiples: float, exponent: s16, scalar_variable: string) -> *Term 
     return term;
 }
 
-free_term :: (source: *Term) { // TODO: I'm not sure this is going to be a thing, just free the whole coefficient
+new_coefficient :: (multiples: float, exponent: s16, scalar_variable: string) -> Coefficient {
 
-    assert(source != null);
+    coefficient: Coefficient;
 
-    if source.numerator_count > 0 {
-       // free(source.factors.data); // TODO: 04.09.2025 Refactoring!
-    }
-   // free(source); // TODO: 04.09.2025 Refactoring!
+    coefficient.terms = new_term(multiples, exponent, scalar_variable);
+    coefficient.term_count = 1;
+    coefficient.byte_size  = size_of(Term) + size_of(Numerator);
 
-    return;
+    return coefficient;
 }
 
-free_coefficient :: (coefficient: Coefficient) {
 
-    // Deallocate buffer storing the terms.
-    // TODO: Should this free the numerators and denominators?
-    // TODO: 04.09.2025 -- Does nothing right now!
-   // free(coefficient.terms.data);
-    return;
+get_numerators :: (term: *Term) -> [] Numerator {
+
+    numerators: [] Numerator;
+    numerators.data = cast(*Numerator)(cast(*u8)term + size_of(Term));
+    numerators.count = term.numerator_count;
+
+    return numerators;
 }
+
+get_denominators :: (term: *Term) -> [] Denominator {
+
+    denominators: [] Denominator;
+    denominators.data  = cast(*Denominator)(cast(*u8)term + size_of(Term) + (term.numerator_count * size_of(Numerator)));
+    denominators.count = term.denominator_count;
+
+    return denominators; 
+}
+
 
 scale_coefficient :: (coefficient: Coefficient, s: float) {
 
@@ -268,7 +233,7 @@ sum_coefficients :: (lhs: *Coefficient, rhs: *Coefficient) {
         for j: 0..rhs.term_count-1 {
             if terms_are_equal(lhs.terms[i], rhs.terms[j]) {
                 lhs.terms[i].multiples += rhs.terms[j].multiples;
-                remove_term(rhs, j);
+             //   remove_term(rhs, j); // TODO: 04.09.2025 not sure i still need this
             }
         }
     }
@@ -323,9 +288,8 @@ coefficient_to_string :: (coefficient: Coefficient) -> string {
 
 #scope_file
 
-
 term_is_number :: inline (term: *Term) -> bool {
-    return term.numerator_count == 0;
+    return term.numerator_count == 0 && term.denominator_count == 0;
 }
 
 multiply_term :: (lhs: *Term, rhs: *Term) -> Term {

@@ -12,9 +12,9 @@
 #scope_export
 
 // These limits don't mean that a single coefficient can *only* have 'X' number of terms. It can have way more terms but with fewer numerators and denominators.
-// If a coefficient has multiple terms with tons of numerators and denominators then the coefficient *must* have fewer overall terms. 
+// If a coefficient has multiple terms with tons of numerators and denominators then the coefficient *must* have fewer overall terms to meet the capacity limits.
 // The buffer *size* is fixed not the number of individual terms, numerators or denominators. 
-// The constants are declared to give an idea of why I chose the memory bound on the working set buffers that I did.
+// The constants are declared as upper-bounds on the number of each component of a coefficient as a reminder of how the buffer size limits were chosen the way that they are.
 
 MAX_TERMS_PER_COEFFICIENT   :: 16;
 MAX_NUMERATORS_PER_TERM     :: 15;
@@ -35,6 +35,23 @@ TOTAL_SCRATCH_SPACE :: MAX_NUMBER_OF_BASIS_ELEMENTS  * SCRATCH_BUFFER_SIZE;
 
 #assert(SCRATCH_BUFFER_SIZE <= 2048);
 #assert(TOTAL_SCRATCH_SPACE <= 65536);
+
+// TOOD: 04.09.2025 -- Time to get after it kiddo. This is where the meat and potatoes are made!
+// As discussed before we need to introduce the top-level 'eval' loop so that this fits into the picture cleanly.
+// The idea is that we have 3 buffers.
+//  2 of them are used as 'swap' for intermediate calculations 2048 x 2
+//  1 of them is the accumulator for each basis element. 65536
+//
+// We need the eval loop to load into the active buffer, use it for the calculation then flip back over
+// Then for the sum we have the existing sum buffer for that coefficient, we have the intermediate result then write to the active buffer
+// Then write-back to the sum buffer.
+//  Load
+//  Decode
+//  Execute
+//  Memory
+//  Write-back...sort of!
+// This is a tomorrow problem but I am actually excited to get back to it, should be fun enough to do and with the flatten I feel WAY better
+// about things.
 
 
 /* TODO: Remove this code below, this is just for reference 
