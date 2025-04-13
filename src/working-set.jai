@@ -61,44 +61,45 @@ Working_Set :: struct {
     sums: Aggregate_Basis_Terms;
 }
 
-// TODO: 04.13.2025 -- Need to re-evaluate this to make sure it works with our new structure.
-
 initialize_working_set :: (working_set: *Working_Set) {
 
-
-/*
-    // Space for working set is statically allocated.
-    // Initialization needs to set/adjust pointers to the appropriate sections of the allocated space.
-
+    // Initialization needs to set/adjust pointers to the appropriate sections of the statically allocated working set space.
+    
+    // Initialize working buffers for intermediate calculations.
     working_set.current_buffer_index = -1;
-    for i: 0..Working_Set.NUM_SCRATCH_BUFFERS-1 {
-        working_set.scratch_coefficients[i].terms = cast(*Term)*working_set.scratch_buffers[i];
-        working_set.scratch_coefficients[i].term_count = 0;
+    for i: 0..Working_Set.NUM_BUFFERS-1 {
+        working_set.basis_terms[i].basis       = get_basis_element(0);
+        working_set.basis_terms[i].coefficient = cast(*Coefficient)*working_set.buffers[i];
+        memset(working_set.basis_terms[i].coefficient, 0, size_of(Coefficient));
     }
 
+    // Initialize basis terms sums.
     for i: 0..MAX_NUMBER_OF_BASIS_ELEMENTS-1 {
-        working_set.basis_coefficients[i].terms = cast(*Term)*working_set.coefficients_data[i];
-        working_set.basis_coefficients[i].term_count = 0;
+        working_set.sums.basis_terms[i].basis = get_basis_element(i);
+        working_set.sums.basis_terms[i].coefficient = cast(*Coefficient)*working_set.sums.buffer[i];
+        memset(working_set.sums.basis_terms[i].coefficient, 0, size_of(Coefficient));
     }
-    */
 }
-
-/*
 
 reset_working_set :: (working_set: *Working_Set) {
+    
+    // Reset the coefficients in the ring of buffers (but not quite a ring buffer...)
+    // Do *not* adjust pointers that were set on initialization!!!
 
     working_set.current_buffer_index = -1;
-    working_set.evaluated_basis_element_count = 0;
+    working_set.sums.evaluated_basis_term_count = 0;
 
-    // Do *not* adjust any pointers that were set on intiailization; just reset counts.
-    for i: 0..Working_Set.NUM_SCRATCH_BUFFERS-1 {
-        working_set.scratch_coefficients[i].term_count = 0;
+    for i: 0..Working_Set.NUM_BUFFERS-1 {
+        working_set.basis_terms[i].basis = get_basis_element(0);
+        memset(working_set.basis_terms[i].coefficient, 0, size_of(Coefficient));
     }
 
     for i: 0..MAX_NUMBER_OF_BASIS_ELEMENTS-1 {
-        working_set.basis_coefficients[i].term_count = 0;
-    } 
+        memset(working_set.sums.basis_terms[i].coefficient, 0, size_of(Coefficient));
+    }
 }
+
+/*
 
 rotate_active_scratch_buffer :: inline (working_set: *Working_Set) {
     working_set.current_buffer_index = (working_set.current_buffer_index + 1) % Working_Set.NUM_SCRATCH_BUFFERS;
