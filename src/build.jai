@@ -16,8 +16,9 @@ build :: () {
     build_options.output_path            = "../bin/debug";
     set_build_options(build_options, w);
 
+    add_build_file("./algebra-types.jai",       w);
     add_build_file("./ast.jai",                 w);
-    add_build_file("./coefficient.jai",         w);
+  //    add_build_file("./coefficient.jai",         w); // TODO: 04.13.2025 should be replaced with algebra_types.jai
  //   add_build_file("./eval.jai",                w); // TODO: 04.09 this needs refactored!
     add_build_file("./exterior-space.jai",      w);
     add_build_file("./input.jai",               w);

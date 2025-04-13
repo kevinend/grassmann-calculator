@@ -1,6 +1,7 @@
 /*
     This file contains information about the currently declared exterior algebra space.
     The space defines an 'execution-context' for the current set of expressions.
+    
     Part of the execution context is the list of currently declared and defined symbols so in a certain respect the
     exterior space data type replaces the traditional symbol table(s).
 
@@ -38,19 +39,6 @@
 
 #scope_export
 
-Basis_Element :: struct {
-    // Represents any basis element from grade [0,n] in the currently declared space.
-    grade:  int;
-    bitset: int;
-    symbol: string;
-}
-
-M_Element :: struct { // TODO: Use this instead of a *Ast in symbol table.
-    // An M-element represents a multi-element. An element that *can* be of mixed grade.
-    grade: int      = -1;
-    ast:  *Ast_Node = null;
-}
-
 MAX_DIMENSION :: 5;
 MAX_NUMBER_OF_BASIS_ELEMENTS :: #run power(2, MAX_DIMENSION);
 
@@ -75,7 +63,7 @@ update_exterior_space :: (dimension: int, _1_element_symbols: [] string, scalar_
 
     space.dimension = dimension;
 
-    num_basis_elements := power(2, dimension);
+    basis_element_count := power(2, dimension);
 
     space.basis_elements[0] = Basis_Element.{ grade = 0, bitset = 0, symbol = "1" };
     count: int = 1;
@@ -89,20 +77,20 @@ update_exterior_space :: (dimension: int, _1_element_symbols: [] string, scalar_
         );
     }
 
-    assert(count == num_basis_elements);
+    assert(count == basis_element_count);
 
-    for i: 1..num_basis_elements-1 {
+    for i: 1..basis_element_count-1 {
         element        := *space.basis_elements[i];
         element.symbol =   generate_basis_symbol(element.bitset, element.grade, _1_element_symbols);
     }
 
     // update the mapping table from an element's bits to the basis element
-    for i: 0..num_basis_elements-1 {
+    for i: 0..basis_element_count-1 {
         index := space.basis_elements[i].bitset;
         space.bitset_to_basis_elements[index] = *space.basis_elements[i]; 
     }
 
-    space.n_element = *space.basis_elements[num_basis_elements-1];
+    space.n_element = *space.basis_elements[basis_element_count-1];
 
     space.scalar_variable_prefix_characters = scalar_variable_prefix_characters;
     return;

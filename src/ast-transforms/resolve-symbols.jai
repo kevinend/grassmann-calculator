@@ -33,12 +33,12 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
         ident := cast(*Identifier_Node)node;
 
         // Check if identifier matches one of the currently declared basis 1-elements.
-        _1_element := matches_1_element(ident.name);
-        if _1_element { 
-            coefficient := one();
-            element     := new_element_node(ident.node_id, coefficient, _1_element);
+        basis_1_element := matches_1_element(ident.name);
+        if basis_1_element { 
+            coefficient     := coefficient_one();
+            basis_term_node := new_basis_term_node(ident.node_id, coefficient, basis_1_element);
 
-            return element;
+            return basis_term_node;
         }
 
         // Check if identifier starts with a character of the currently declared scalar variables. If so, validate it matches the schema otherwise return an error.
@@ -46,11 +46,11 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
         if match {
             valid := valid_scalar_variable(ident.name);
             if valid {
-                coefficient := new_coefficient(multiples = 1, exponent = 1, scalar_variable = ident.name);
-                basis       := get_basis_element(0);
-                element     := new_element_node(ident.node_id, coefficient, basis);
+                coefficient     := new_coefficient(multiples = 1, exponent = 1, scalar_variable = ident.name);
+                basis           := get_basis_element(0);
+                basis_term_node := new_basis_term_node(ident.node_id, coefficient, basis);
 
-                return element;
+                return basis_term_node;
             }
             else {
                 message := tprint("Parsed identifier '%' as a scalar variable. Scalar variables contain a leading character from the list '%' followed by a maximum of 2 digits.", ident.name, space.scalar_variable_prefix_characters);

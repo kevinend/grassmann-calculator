@@ -6,7 +6,7 @@
 
     Current checks:
     1. Undeclared identifiers (error nodes generated during symbol resolution)
-    2. Variables are the only targets for assignment (no basis elements or scalars).
+    2. Variables are the only targets for assignment (no basis terms or scalars).
     3. Function calls *must* use intrinsic's (no user-defined functions).
 */
 
@@ -51,31 +51,31 @@ check :: (node: *Ast_Node) -> *Ast_Node {
             if lhs.kind == .Error { return lhs; }
             if rhs.kind == .Error { return rhs; }
 
-            if binary_op.op == .Assignment && lhs.kind == .Element {
-                element := cast(*Element_Node)lhs;
+            if binary_op.op == .Assignment && lhs.kind == .Basis_Term {
+                basis_term := cast(*Basis_Term_Node)lhs;
                 message: string = ---;
-                if element.basis.grade == 0 {
+                if basis_term.basis.grade == 0 {
                     message = tprint("Scalar cannot be the target of an assignment.");
                 }
                 else {
-                    message = tprint("Basis element cannot be the target of an assignment.");
+                    message = tprint("Basis terms cannot be the target of an assignment.");
                 }
 
-                error := new_error_node(element.node_id, message);
+                error := new_error_node(basis_term.node_id, message);
                 return error;
             }
 
-            if binary_op.op == .Function_Call && lhs.kind == .Element {
-                element := cast(*Element_Node)lhs;
+            if binary_op.op == .Function_Call && lhs.kind == .Basis_Term {
+                basis_term := cast(*Basis_Term_Node)lhs;
                 message: string = ---;
-                if element.basis.grade == 0 {
+                if basis_term.basis.grade == 0 {
                     message = tprint("Juxtaposition for scalar multiplication is not supported, please use the scalar multiplication or exterior product operators between the scalar and the grouping.");
                 }
                 else {
-                    message = tprint("Juxtaposition with a basis element is not supported. Please use a Grassmann operator between the element and the grouping.");
+                    message = tprint("Juxtaposition with a basis term is not supported. Please use a Grassmann operator between the term and the grouping.");
                 }
 
-                error := new_error_node(element.node_id, message);
+                error := new_error_node(basis_term.node_id, message);
                 return error;
             }
 

@@ -84,6 +84,88 @@ Complement_Type :: enum {
     Right;
 }
 
+// TODO: 04.12.2025
+// result := load_element_into_working_set(working_set, element);
+// Like you loaded the thing into the working set
+// It is a pointer to a basis element, so you can have a basis element, load it up with the data
+// Then copy the coefficient into the coefficient data section and return a pointer to this element
+//
+// How does this help with the binary operator case?
+// We could have the product load zero?
+//  result = load_element_into_working_set(working_set, zero);
+// that is what we do in both products anyways and the result is typically zero so we don't have to do anything
+// it wouldn't change. Cool, that might be a play there!
+
+eval :: (node: *Ast_Node, parent: *Ast_Node, working_set: *Working_Set) {
+
+    result: *Element_Node = null;
+    if node.kind == .Element {
+        element := cast(*Element_Node)node;
+
+        rotate_active_scratch_buffer(working_set);
+        element.coefficient = load_coefficient_into_working_set(working_set, element.coefficient);
+
+        result = element;
+    }
+    else
+    if node.kind == .Unary_Operator {
+        unary_op    := cast(*Unary_Operator)node;
+        unary_op.rhs = eval(unary_op.rhs, unary_op);
+
+        assert(unary_op.rhs == .Element);
+        element := cast(*Element_Node)unary_op.rhs;
+    
+        if unary_op.op == {
+            case .Negation;         { result = negate(element); }
+            case .Left_Complement;  { result = complement(Complement_Type.Left,  element); }
+            case .Right_Complement; { result = complement(Complement_Type.Right, element); }
+        }
+    }
+    else
+    if node.kind == .Associative_Operator {
+        associative_op := cast(*Associative_Operator)node;
+        args := associative_op.args;
+
+        if associative_op.op == .Addition {
+            // Addition is deferred until down below.
+            for i: 0..args.count-1 { eval(args[i]); }
+        }
+        else {
+            lhs := eval(args[0]);
+            for i: 1..args.count-1 {
+                rhs := eval(args[i]);
+
+                rotate_active_scratch_buffer(working_set);
+                intermediate := get_scratch_cofficient(working_set); // could we load zero in here?
+
+                if associative_op.op == {
+                    case .Exterior_Product;    { result = exterior_product  (lhs, rhs, intermediate); }
+                    case .Regressive_Product;  { result = regressive_product(lhs, rhs, intermediate); }
+                }
+                lhs = result;
+            }
+        }
+    }
+
+    if parent == .null || parent == .Addition {
+        basis := result.element.basis;
+        lhs   := result.coefficient;
+
+        rhs   := get_basis_coefficient(working_set, basis);
+
+        results := get_next_buffer(working_set);
+        sum     := add_coefficients(lhs, rhs, results);
+        update_basis_coefficient(working_set, basis, sum);
+
+        reset_buffers(working_set);
+    }
+    else {
+        return result;
+    }
+
+}
+
+/* TODO: 04.12.2025 -- Remove this once our new eval is working!
 eval :: (node: *Ast_Node) -> *Ast_Node {
 
     // Evaluates all 'local' operations, so everything excluding addition and subtraction.
@@ -131,6 +213,8 @@ eval :: (node: *Ast_Node) -> *Ast_Node {
     return result;
 
 }
+
+*/
 
 negate :: (element: *Element_Node) -> *Element_Node {
 

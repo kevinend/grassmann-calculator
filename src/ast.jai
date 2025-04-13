@@ -14,7 +14,7 @@ Node_Kind :: enum u32 {
     Error;
     Identifier;
     Variable;
-    Element;              // element of an exterior space
+    Basis_Term;
     Unary_Operator;       // prefix/postfix operators
     Binary_Operator;      // all infix operators during parsing
     Associative_Operator; // all associative binary operators after flattening the AST
@@ -47,11 +47,10 @@ Variable_Node :: struct {
     name: string;
 }
 
-Element_Node :: struct {
+Basis_Term_Node :: struct {
     #as using _kind: Ast_Node;
 
-	coefficient:  Coefficient;
-	basis:       *Basis_Element;
+    using data: Basis_Term; 
 }
 
 Unary_Operator_Node :: struct {
@@ -72,7 +71,6 @@ Associative_Operator_Node :: struct {
     op: Operator_Type;
     args: [] *Ast_Node;
 }
-
 
 // Keywords get mapped to intrinsic node types.
 // Intrsics are predefined functions/commands that user's can call within an expression.
@@ -137,12 +135,12 @@ new_variable_node :: (node_id: u16, name: string) -> *Variable_Node {
     return node;
 }
 
-new_element_node :: (node_id: u16, coefficient: Coefficient, basis_element: *Basis_Element) -> *Element_Node {
+new_basis_term_node :: (node_id: u16, coefficient: *Coefficient, basis_element: *Basis_Element) -> *Basis_Term_Node {
 
-    node: *Element_Node = alloc(size_of(Element_Node));
+    node: *Basis_Term_Node = alloc(size_of(Basis_Term_Node));
     assert(node != null);
 
-    node.kind        = Node_Kind.Element;
+    node.kind        = Node_Kind.Basis_Term;
     node.node_id     = node_id;
     node.coefficient = coefficient;
     node.basis       = basis_element;
@@ -202,37 +200,15 @@ new_intrinsic_node :: (node_id: u16, type: Intrinsic_Type) -> *Intrinsic_Node {
     return node;
 }
 
-// TODO: Review this!
-/*
-free_node :: (node: *Ast_Node) {
-
-    if node.kind == .Element {
-        src := cast(*Element_Node)node;
-        free_coefficient(src.coefficient);
-        free(src);
-    }
-    else
-    if node.kind == .Binary_Operator {
-        src := cast(*Binary_Operator_Node)node;
-        free_node(src.lhs);
-        free_node(src.rhs);
-        free(src);
-    }
-
-    return;
-}
-*/
-
-
 copy_node :: (node: *Ast_Node) -> *Ast_Node {
 
 	dst: *Ast_Node = null;
-	if node.kind == .Element {
-		src         := cast(*Element_Node)node;
+	if node.kind == .Basis_Term {
+		src         := cast(*Basis_Term_Node)node;
         coefficient := src.coefficient;         // shallow copy!
         basis       := src.basis;
 
-		dst = new_element_node(src.node_id, coefficient, basis);
+		dst = new_basis_term_node(src.node_id, coefficient, basis);
 	}
     else
     if node.kind == .Variable {
@@ -265,10 +241,10 @@ ast_to_string :: (ast: Ast) -> string {
 
     ast_to_string_helper :: (node: *Ast_Node, builder: *String_Builder) {
 
-        if node.kind == .Element {
-            element := cast(*Element_Node)node;
-            coefficient  := coefficient_to_string(element.coefficient);
-            basis_symbol := element.basis.symbol;
+        if node.kind == .Basis_Term {
+            basis_term := cast(*Basis_Term_Node)node;
+            coefficient  := coefficient_to_string(basis_term.coefficient);
+            basis_symbol := basis_term.basis.symbol;
 
             append(builder, "(" );
             append(builder, coefficient);
@@ -323,15 +299,15 @@ descend :: (ast: Ast) {
             print("(%) Variable == %\n", var.node_id, var.name);
         }
         else
-        if node.kind == .Element {
-            element := cast(*Element_Node)node;
+        if node.kind == .Basis_Term {
+            basis_term := cast(*Basis_Term_Node)node;
             print(
-                "(%) Element (Coefficient=%, Grade=%, Symbol=%, Bits=%)\n"
-                ,element.node_id
-                ,coefficient_to_string(element.coefficient)
-                ,element.basis.grade
-                ,element.basis.symbol
-                ,element.basis.bitset
+                "(%) Basis Term (Coefficient=%, Grade=%, Symbol=%, Bits=%)\n"
+                ,basis_term.node_id
+                ,coefficient_to_string(basis_term.coefficient)
+                ,basis_term.basis.grade
+                ,basis_term.basis.symbol
+                ,basis_term.basis.bitset
             );
         }
         else

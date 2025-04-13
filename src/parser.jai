@@ -217,7 +217,7 @@ new_operand :: (parser: *Parser, token: Token) -> *Ast_Node {
         coefficient := new_coefficient(token.value);
         basis       := get_basis_element(0);
 
-        node = new_element_node(node_id, coefficient, basis);
+        node = new_basis_term_node(node_id, coefficient, basis);
     }
     else
     if token.type == .Identifier {

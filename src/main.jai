@@ -1,5 +1,6 @@
 #scope_export
 
+
 /*
     High-Level steps of the application
         // Lexer             --> Generate tokens.
@@ -28,7 +29,8 @@ main :: () {
 
     update_exterior_space(default_dimension, default_1_elements, default_scalar_variable_prefix_characters);
     initialize_operator_tables();
-    initialize_coefficients();
+    initialize_canonical_basis_terms();
+
    //  initialize_working_set() // TODO: Implement this!
 
     // Variables for main loop:
@@ -36,7 +38,7 @@ main :: () {
     USER_PROMPT :: "> ";
     success: bool = false;
     input: string;
-    
+
     lexer:  Lexer;
     tokens: [] Token;
 
@@ -45,21 +47,9 @@ main :: () {
 
 	while !quit {
 
-        // TODO: 04.08.2025 -- Have utility function or something to report on temp storage statistics. And call that here.
-        ts := context.temporary_storage;
-        if !ts {
-            print("No temporary storage!\n");
-        }
-        else {
-            print("Temporary storage metrics\n");
-            print("Size == %\n", ts.original_size);
-            print("Current_page_bytes_occupied == %\n", ts.current_page_bytes_occupied);
-            print("Total bytes occupied == %\n", ts.total_bytes_occupied);
-            print("High water mark == %\n", ts.high_water_mark);
-        }
-
+        report_temporary_storage_metrics();
         reset_temporary_storage();
-        
+
 		print("%", USER_PROMPT);
 		success, input = read_line();
         if !success {
@@ -110,7 +100,7 @@ main :: () {
         }
 
 
-/* 
+/*
     04.08.2025 -- There is no more scratch space. This is called working_set, need to handle intialization and stuff.
                   Also thinking of a separate bump allocator for the coefficient/term/numerators/denominators...
 
@@ -129,3 +119,18 @@ main :: () {
 #scope_file
 #import "Basic";
 #import "Hash_Table";
+
+report_temporary_storage_metrics :: () {
+
+    ts := context.temporary_storage;
+    if !ts {
+        print("No temporary storage!\n");
+    }
+    else {
+        print("Temporary storage metrics\n");
+        print("Size == %\n", ts.original_size);
+        print("Current_page_bytes_occupied == %\n", ts.current_page_bytes_occupied);
+        print("Total bytes occupied == %\n", ts.total_bytes_occupied);
+        print("High water mark == %\n", ts.high_water_mark);
+    }
+}

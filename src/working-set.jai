@@ -1,7 +1,7 @@
 /* 
     Generating results for an expression *can* create a lot of temporary/intermediate results.
     To mitigate against this growing out of control and using an unbounded amount of memory, fixed limits
-    are imposed on the overall size of an individual coefficient belonging to a single basis element.
+    are imposed on the overall size of an individual coefficient belonging to a single basis term.
 
     The working set imposes the limit and can be adjusted if we run into calculations that exceed the
     bounds. The limit is intentionally restrictive so we can collect metrics and see what the actual
@@ -13,7 +13,7 @@
 
 // These limits don't mean that a single coefficient can *only* have 'X' number of terms. It can have way more terms but with fewer numerators and denominators.
 // If a coefficient has multiple terms with tons of numerators and denominators then the coefficient *must* have fewer overall terms to meet the capacity limits.
-// The buffer *size* is fixed not the number of individual terms, numerators or denominators. 
+// The total buffer *size* is fixed not the number of individual terms, numerators or denominators. 
 // The constants are declared as upper-bounds on the number of each component of a coefficient as a reminder of how the buffer size limits were chosen the way that they are.
 
 MAX_TERMS_PER_COEFFICIENT   :: 16;
@@ -24,121 +24,112 @@ MAX_DENOMINATORS_PER_TERM   :: 15;
 #assert(size_of(Numerator)   <= 4);
 #assert(size_of(Denominator) <= 4);
 
-// The scratch buffer stores the coefficient for a *single* basis element.
-SCRATCH_BUFFER_SIZE :: 
+SINGLE_COEFFICIENT_DATA_BUFFER_SIZE :: 
       MAX_TERMS_PER_COEFFICIENT * size_of(Term)
-    + MAX_TERMS_PER_COEFFICIENT * (MAX_NUMERATORS_PER_TERM * size_of(Numerator))
+    + MAX_TERMS_PER_COEFFICIENT * (MAX_NUMERATORS_PER_TERM   * size_of(Numerator))
     + MAX_TERMS_PER_COEFFICIENT * (MAX_DENOMINATORS_PER_TERM * size_of(Denominator));
 
-// Total scratch space *assumes* that each and every basis element has a coefficient that uses the maximum space.
-TOTAL_SCRATCH_SPACE :: MAX_NUMBER_OF_BASIS_ELEMENTS  * SCRATCH_BUFFER_SIZE;
+#assert(1                            * SINGLE_COEFFICIENT_DATA_BUFFER_SIZE <= 2048 );
+#assert(MAX_NUMBER_OF_BASIS_ELEMENTS * SINGLE_COEFFICIENT_DATA_BUFFER_SIZE <= 65536);
 
-#assert(SCRATCH_BUFFER_SIZE <= 2048);
-#assert(TOTAL_SCRATCH_SPACE <= 65536);
+Aggregate_Basis_Terms :: struct {
+    
+    // Stores the latest coefficient for a basis term during evaluation of the AST.
+    // Since not every expression uses every available basis term, keep track of which basis elements were part of the expression
+    // to generate the final result.
 
-// TOOD: 04.09.2025 -- Time to get after it kiddo. This is where the meat and potatoes are made!
-// As discussed before we need to introduce the top-level 'eval' loop so that this fits into the picture cleanly.
-// The idea is that we have 3 buffers.
-//  2 of them are used as 'swap' for intermediate calculations 2048 x 2
-//  1 of them is the accumulator for each basis element. 65536
-//
-// We need the eval loop to load into the active buffer, use it for the calculation then flip back over
-// Then for the sum we have the existing sum buffer for that coefficient, we have the intermediate result then write to the active buffer
-// Then write-back to the sum buffer.
-//  Load
-//  Decode
-//  Execute
-//  Memory
-//  Write-back...sort of!
-// This is a tomorrow problem but I am actually excited to get back to it, should be fun enough to do and with the flatten I feel WAY better
-// about things.
+    buffer:      [MAX_NUMBER_OF_BASIS_ELEMENTS] [SINGLE_COEFFICIENT_DATA_BUFFER_SIZE] u8;
+    basis_terms: [MAX_NUMBER_OF_BASIS_ELEMENTS] Basis_Term;
 
+    // Track the indices of basis terms in basis terms array that have updated coefficients during evaluation.
+    evaluated_basis_terms: [MAX_NUMBER_OF_BASIS_ELEMENTS] int;
+    evaluated_basis_term_count: int;
+}
 
-/* TODO: Remove this code below, this is just for reference 
 Working_Set :: struct {
-    // The working set represents the set of terms and factors belonging to a single basis element during evaluation.
-    terms:          [SCRATCH_WORKING_SET_TERMS]         Term;
-    numerators:     [SCRATCH_WORKING_SET_NUMERATORS]    Factor;
-    denominators:   [SCRATCH_WORKING_SET_DENOMINATORS]  Factor;
-    coefficient:    Coefficient;
+
+    // The working set acts like a register file for this application.
+    // Load basis terms and their coefficient's into the working set, peform operations, then write-back results after evaluation.
+    // Write-back occurs against the 'sums' to track the latest value for a basis element during evaluation.
+
+    NUM_BUFFERS :: 3;
+
+    current_buffer_index: int;
+    buffers:     [NUM_BUFFERS] [SINGLE_COEFFICIENT_DATA_BUFFER_SIZE] u8;
+    basis_terms: [NUM_BUFFERS] Basis_Term;
+
+    sums: Aggregate_Basis_Terms;
 }
 
-Scratch :: struct {
-    // The scratch buffers store the cumulative result from evaluation of terms and factors across the AST for each basis element.
-    terms:         [SCRATCH_TERMS]        Term;
-    numerators:    [SCRATCH_NUMERATORS]   Factor;
-    denominators:  [SCRATCH_DENOMINATORS] Factor;
-    working_set:   Working_Set;
+// TODO: 04.13.2025 -- Need to re-evaluate this to make sure it works with our new structure.
 
-    coefficients:    [MAX_NUMBER_OF_BASIS_ELEMENTS] Coefficient;
-    populated_slots: [MAX_NUMBER_OF_BASIS_ELEMENTS] int;
-    populated_count: int;
-}
+initialize_working_set :: (working_set: *Working_Set) {
 
-initialize_scratch_space :: (scratch: *Scratch) {
-    // Space is statically allocated, just adjust the pointers for the coefficients to their respective sections of the scratch buffer
+
+/*
+    // Space for working set is statically allocated.
+    // Initialization needs to set/adjust pointers to the appropriate sections of the allocated space.
+
+    working_set.current_buffer_index = -1;
+    for i: 0..Working_Set.NUM_SCRATCH_BUFFERS-1 {
+        working_set.scratch_coefficients[i].terms = cast(*Term)*working_set.scratch_buffers[i];
+        working_set.scratch_coefficients[i].term_count = 0;
+    }
+
     for i: 0..MAX_NUMBER_OF_BASIS_ELEMENTS-1 {
-        scratch.coefficients[i].terms.data = *scratch.terms[i*MAX_TERMS_PER_COEFFICIENT];
-        scratch.coefficients[i].terms.count = 0;
+        working_set.basis_coefficients[i].terms = cast(*Term)*working_set.coefficients_data[i];
+        working_set.basis_coefficients[i].term_count = 0;
     }
-
-    // Iterate over the terms and set them to their respective numerator and denominators within the scratch space.
-    for i: 0..SCRATCH_TERMS-1 {
-        scratch.terms[i].numerators.data  = *scratch.numerators[i*MAX_NUMERATORS_PER_TERM];
-        scratch.terms[i].numerators.count = 0;
-
-        scratch.terms[i].denominators.data  = *scratch.denominators[i*MAX_DENOMINATORS_PER_TERM];
-        scratch.terms[i].denominators.count = 0;
-    }
-
-    // Initialize working set under the scratch space.
-    // Working set contains a single coefficient.
-    scratch.working_set.coefficient.terms.data  = scratch.working_set.terms.data;
-    scratch.working_set.coefficient.terms.count = 0;
-
-    // Each term in the working set should point to its respective factors (numerators and denominators).
-    for i: 0..MAX_TERMS_PER_COEFFICIENT-1 {
-        scratch.working_set.terms[i].numerators.data  = *scratch.working_set.numerators[i*MAX_NUMERATORS_PER_TERM];
-        scratch.working_set.terms[i].numerators.count = 0;
-
-        scratch.working_set.terms[i].denominators.data  = *scratch.working_set.denominators[i*MAX_DENOMINATORS_PER_TERM];
-        scratch.working_set.terms[i].denominators.count = 0;
-    }
+    */
 }
 
-reset_scratch_space :: (scratch: *Scratch) {
-    // Do *not* adjust the pointers into the scratch space buffer, just reset counts back to zero.
+/*
+
+reset_working_set :: (working_set: *Working_Set) {
+
+    working_set.current_buffer_index = -1;
+    working_set.evaluated_basis_element_count = 0;
+
+    // Do *not* adjust any pointers that were set on intiailization; just reset counts.
+    for i: 0..Working_Set.NUM_SCRATCH_BUFFERS-1 {
+        working_set.scratch_coefficients[i].term_count = 0;
+    }
+
     for i: 0..MAX_NUMBER_OF_BASIS_ELEMENTS-1 {
-        scratch.coefficients[i].terms.count = 0;
-    }
-
-    for i: 0..SCRATCH_TERMS-1 {
-        scratch.terms[i].numerators.count = 0;
-        scratch.terms[i].denominators.count = 0;
-    }
-
-    // Working set is constantly overwritten during evaluation, no need to reset it.
-
-    scratch.populated_count = 0;
+        working_set.basis_coefficients[i].term_count = 0;
+    } 
 }
 
-load_coefficient :: (scratch: *Scratch, index: int) -> *Coefficient {
-    return *scratch.coefficients[index];
+rotate_active_scratch_buffer :: inline (working_set: *Working_Set) {
+    working_set.current_buffer_index = (working_set.current_buffer_index + 1) % Working_Set.NUM_SCRATCH_BUFFERS;
+    return;
 }
 
-store_then_load_coefficient :: (working_set: *Working_Set, coefficient: Coefficient) -> *Coefficient {
-
-    for i: 0..coefficient.terms.count-1 {
-        working_set.terms[i] = coefficient.terms[i];
-        memcpy(working_set.terms[i].numerators.data,   coefficient.terms[i].numerators.data,   coefficient.terms[i].numerators.count   * size_of(Factor));
-        memcpy(working_set.terms[i].denominators.data, coefficient.terms[i].denominators.data, coefficient.terms[i].denominators.count * size_of(Factor));
-    }
-
-    working_set.coefficient.terms.count = coefficient.terms.count;
-
-    return *working_set.coefficient;
+get_scratch_cofficient :: inline (working_set: *Working_Set) -> Coefficient {
+    index := working_set.current_buffer_index;
+    return working_set.scratch_coefficients[index];
 }
 
+load_coefficient_into_working_set :: (working_set: *Working_Set, input: Coefficient) -> Coefficient {
+    
+    // Copy the contents of the input coefficient into the 'active' scratch buffer.
+    // TODO: This is janky not taking pointers or returning pointers...04.12.2025
+    
+    index := working_set.current_buffer_index;
+
+    ptr_scratch_coefficient             := *working_set.scratch_coefficients[index];
+    ptr_scratch_coefficient.term_count   = input.term_count;
+    ptr_scratch_coefficient.byte_size    = input.byte_size;
+
+    scratch_coefficient := working_set.scratch_coefficients[index];
+
+    memcpy(cast(*u8)scratch_coefficient.terms, cast(*u8)input.terms, input.byte_size);
+
+    return scratch_coefficient;
+}
+*/
+
+/*
 mark_coefficient_populated :: (scratch: *Scratch, index: int) {
 
     scratch.populated_slots[scratch.populated_count] = index;
