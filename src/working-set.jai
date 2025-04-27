@@ -102,8 +102,7 @@ store_coefficient :: (ws: *Working_Set, coefficient: *Coefficient) -> *Coefficie
 
 load_coefficient :: (ws: *Working_Set, index: int) -> Coefficient {
     // Loads *aggregate* coefficients from the working set.
-
-    coefficient := 
+    // TODO: 04.27.2025 working on it!
     return Coefficient.{};
 }
 

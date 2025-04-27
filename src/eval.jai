@@ -97,7 +97,7 @@ eval :: (node: *Ast_Node, parent: *Ast_Node, working_set: *Working_Set) -> *Ast_
         basis_term_node := cast(*Basis_Term_Node)node;
         basis_term_node.coefficient = store_coefficient(working_set, basis_term_node.coefficient);
     }
-
+/*
     if parent == null {
         bitset := get_basis_bitset(basis_term_node.basis_term);
 
@@ -108,6 +108,7 @@ eval :: (node: *Ast_Node, parent: *Ast_Node, working_set: *Working_Set) -> *Ast_
 
         update_coefficient(working_set, bitset, result);
     }
+*/
 }
 
 /*
@@ -126,7 +127,6 @@ eval :: (node: *Ast_Node, parent: *Ast_Node, working_set: *Working_Set) -> *Ast_
     }
 */
       
-}
 
 /*
  Starting over with eval on 04.26.2025

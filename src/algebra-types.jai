@@ -112,26 +112,48 @@ get_basis_bitset :: (basis_term: *Basis_Term) -> int {
     return basis_term.basis.bitset;
 }
 
-new_coefficient :: (value: float) -> *Coefficient {
-
-    coefficient := cast(*Coefficient)heap_allocate(*coefficient_heap, size = size_of(Coefficient), alignment = size_of(Coefficient));
+allocate_coefficient :: (heap: *Bump_Heap) -> *Coefficient {
+    
+    coefficient := cast(*Coefficient)heap_allocate(heap, size = size_of(Coefficient), alignment = size_of(Coefficient));
     assert(coefficient != null);
     memset(coefficient, 0, size_of(Coefficient));
 
-    term := new_term(value);
+    return coefficient;
+}
+
+
+new_coefficient :: (value: float, heap: *Bump_Heap = null) -> *Coefficient {
+
+    coefficient: *Coefficient = null;
+    if !heap {
+        coefficient = allocate_coefficient(*coefficient_heap);
+        coefficient.heap = *coefficient_heap;
+    }
+    else {
+        coefficient = allocate_coefficient(heap);
+        coefficient.heap = heap;
+    }
+    
+    term := new_term(value, coefficient.heap);
     append_term(term, coefficient);
 
     return coefficient;
 }
 
-new_coefficient :: (multiples: float, factor_type: Factor_Type, exponent: u16, scalar_variable: string) -> *Coefficient {
+new_coefficient :: (multiples: float, factor_type: Factor_Type, exponent: u16, scalar_variable: string, heap: *Bump_Heap = null) -> *Coefficient {
 
-    coefficient := cast(*Coefficient)heap_allocate(*coefficient_heap, size = size_of(Coefficient), alignment = size_of(Coefficient));
-    assert(coefficient != null);
-    memset(coefficient, 0, size_of(Coefficient));
+    coefficient: *Coefficient;
+    if !heap {
+        coefficient := allocate_coefficient(*coefficient_heap);
+        coefficient.heap = *coefficient_heap;
+    }
+    else {
+        coefficient := allocate_coefficient(heap);
+        coefficient.heap = heap;
+    }
 
-    term   := new_term(multiples);
-    factor := new_factor(factor_type, exponent, scalar_variable);
+    term   := new_term(multiples, coefficient.heap);
+    factor := new_factor(factor_type, exponent, scalar_variable, coefficient.heap);
 
     append_term(term, coefficient);
     append_factor(factor, term);
@@ -141,20 +163,20 @@ new_coefficient :: (multiples: float, factor_type: Factor_Type, exponent: u16, s
 
 new_term :: (value: float, heap: *Bump_Heap) -> *Term {
 
-    term := cast(*Term)heap_allocate(*coefficient_heap, size = size_of(Term), alignment = size_of(Term));
+    term := cast(*Term)heap_allocate(heap, size = size_of(Term), alignment = size_of(Term));
     assert(term != null);
-
     memset(term, 0, size_of(Term));
+
     term.value = value;
     return term;
 }
 
-new_factor :: (type: Factor_Type, exponent: u16, scalar_variable: string) -> *Factor {
+new_factor :: (type: Factor_Type, exponent: u16, scalar_variable: string, heap: *Bump_Heap) -> *Factor {
 
-    factor := cast(*Factor)heap_allocate(*coefficient_heap, size = size_of(Factor), alignment = size_of(Factor));
+    factor := cast(*Factor)heap_allocate(heap, size = size_of(Factor), alignment = size_of(Factor));
     assert(factor != null);
-
     memset(factor, 0, size_of(Factor));
+
     factor.type     = type;
     factor.exponent = exponent;
     factor.scalar_variable = encode(scalar_variable);

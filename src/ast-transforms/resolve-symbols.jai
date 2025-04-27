@@ -46,7 +46,7 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
         if match {
             valid := valid_scalar_variable(ident.name);
             if valid {
-                coefficient     := new_coefficient(multiples = 1, .Numerator, exponent = 1, scalar_variable = ident.name, coefficient_heap);
+                coefficient     := new_coefficient(multiples = 1, .Numerator, exponent = 1, scalar_variable = ident.name);
                 basis           := get_basis_element(0);
                 basis_term_node := new_basis_term_node(ident.node_id, coefficient, basis);
 
