@@ -34,8 +34,9 @@ Working_Set :: struct {
     // Since not every expression uses every available basis term, keep track of which basis elements were part of the expression
     // to generate the final result.
 
-    aggregate_buffers: [MAX_NUMBER_OF_BASIS_ELEMENTS] [SINGLE_COEFFICIENT_DATA_BUFFER_SIZE] u8;
-    aggregate_heaps:   [MAX_NUMBER_OF_BASIS_ELEMENTS] Bump_Heap;
+    aggregate_coefficients: [MAX_NUMBER_OF_BASIS_ELEMENTS] *Coefficient;
+    aggregate_heaps:        [MAX_NUMBER_OF_BASIS_ELEMENTS] Bump_Heap;
+    aggregate_buffers:      [MAX_NUMBER_OF_BASIS_ELEMENTS] [SINGLE_COEFFICIENT_DATA_BUFFER_SIZE] u8;
 
     updated_basis_elements: [MAX_NUMBER_OF_BASIS_ELEMENTS] int;
     updated_basis_element_count: int;
@@ -57,10 +58,12 @@ initialize_working_set :: (ws: *Working_Set) {
         buffer_end   := *ws.aggregate_buffers[i][0] + SINGLE_COEFFICIENT_DATA_BUFFER_SIZE;
         memset(buffer_start, 0, SINGLE_COEFFICIENT_DATA_BUFFER_SIZE);
 
-        heap_init(*ws.aggregate_heaps[i], buffer_start, buffer_end);
+        heap             := *ws.aggregate_heaps[i];
+        heap_coefficient := *ws.aggregate_coefficients[i];
 
-        // Want to allocate a coefficient in there and point to the heap it is a part of
-
+        heap_init(heap, buffer_start, buffer_end);
+        heap_coefficient.* = allocate_coefficient(heap);
+        heap_set_checkpoint(heap); // on reset make sure we leave the allocated coefficient for reuse
     }
 
     ws.updated_basis_element_count = 0;
@@ -76,6 +79,7 @@ reset_working_set :: (ws: *Working_Set) {
     }
 
     for i: 0..MAX_NUMBER_OF_BASIS_ELEMENTS-1 {
+        clear_coefficient(ws.aggregate_coefficients[i]);
         heap_reset_to_checkpoint(*ws.aggregate_heaps[i]);
     }
 
@@ -92,18 +96,21 @@ store_coefficient :: (ws: *Working_Set, coefficient: *Coefficient) -> *Coefficie
     heap_reset_to_checkpoint(heap);
 
     size := get_coefficient_size(coefficient);
+
     ws_coefficient := cast(*Coefficient)heap_allocate(heap, size, size_of(Coefficient));
     assert(ws_coefficient != null);
-
     memcpy(ws_coefficient, coefficient, size);
+
+    ws_coefficient.heap = heap;
     
     return ws_coefficient;
 }
 
 load_coefficient :: (ws: *Working_Set, index: int) -> Coefficient {
+    
     // Loads *aggregate* coefficients from the working set.
-    // TODO: 04.27.2025 working on it!
-    return Coefficient.{};
+    coefficient := ws.aggregate_coefficients[index];
+    return coefficient;
 }
 
 // new_working_set_coefficient()

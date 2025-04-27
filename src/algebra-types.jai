@@ -69,6 +69,9 @@ Factor_Type :: enum u8 {
     Denominator;
 }
 
+// 04.27.2025 Passing thought. 
+// Make Factor 8 bytes (4 bytes for exponent, 4 bytes for scalar_variables)
+// Remove the 'type' -- type is implicit, negative exponent is denominator, positive is numerator? 
 Factor :: struct {
     type:            Factor_Type;
     exponent:        u16;
@@ -117,21 +120,27 @@ allocate_coefficient :: (heap: *Bump_Heap) -> *Coefficient {
     coefficient := cast(*Coefficient)heap_allocate(heap, size = size_of(Coefficient), alignment = size_of(Coefficient));
     assert(coefficient != null);
     memset(coefficient, 0, size_of(Coefficient));
+    coefficient.heap = heap;
 
     return coefficient;
 }
 
+clear_coefficient :: (coefficient: *Coefficient) {
+    // do *not* memset to zero or alter .heap;
+    coefficient.term_count = 0;
+    set(*coefficient.first_term, null);
+    set(*coefficient.last_term,  null);
+    return;
+}
 
 new_coefficient :: (value: float, heap: *Bump_Heap = null) -> *Coefficient {
 
     coefficient: *Coefficient = null;
     if !heap {
         coefficient = allocate_coefficient(*coefficient_heap);
-        coefficient.heap = *coefficient_heap;
     }
     else {
         coefficient = allocate_coefficient(heap);
-        coefficient.heap = heap;
     }
     
     term := new_term(value, coefficient.heap);
@@ -145,11 +154,9 @@ new_coefficient :: (multiples: float, factor_type: Factor_Type, exponent: u16, s
     coefficient: *Coefficient;
     if !heap {
         coefficient := allocate_coefficient(*coefficient_heap);
-        coefficient.heap = *coefficient_heap;
     }
     else {
         coefficient := allocate_coefficient(heap);
-        coefficient.heap = heap;
     }
 
     term   := new_term(multiples, coefficient.heap);
