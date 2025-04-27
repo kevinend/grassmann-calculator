@@ -1,4 +1,6 @@
 /* 
+    TODO: 04.26.2025 Do these comments still make sense?
+
     Generating results for an expression *can* create a lot of temporary/intermediate results.
     To mitigate against this growing out of control and using an unbounded amount of memory, fixed limits
     are imposed on the overall size of an individual coefficient belonging to a single basis term.
@@ -7,30 +9,114 @@
     bounds. The limit is intentionally restrictive so we can collect metrics and see what the actual
     usage of the application looks like. It is unlikely that we will hit the upper bounds on typical
     Grassmann calculations but we will see.
+
+    // These limits don't mean that a single coefficient can *only* have 'X' number of terms. It can have way more terms but with fewer numerators and denominators.
+// If a coefficient has multiple terms with tons of numerators and denominators then the coefficient *must* have fewer overall terms to meet the capacity limits.
+// The total buffer *size* is fixed not the number of individual terms, numerators or denominators. 
+// The constants are declared as upper-bounds on the number of each component of a coefficient as a reminder of how the buffer size limits were chosen the way that they are.
 */
 
 #scope_export
 
-// These limits don't mean that a single coefficient can *only* have 'X' number of terms. It can have way more terms but with fewer numerators and denominators.
-// If a coefficient has multiple terms with tons of numerators and denominators then the coefficient *must* have fewer overall terms to meet the capacity limits.
-// The total buffer *size* is fixed not the number of individual terms, numerators or denominators. 
-// The constants are declared as upper-bounds on the number of each component of a coefficient as a reminder of how the buffer size limits were chosen the way that they are.
+SINGLE_COEFFICIENT_DATA_BUFFER_SIZE :: 512;
 
-MAX_TERMS_PER_COEFFICIENT   :: 16;
-MAX_NUMERATORS_PER_TERM     :: 15;
-MAX_DENOMINATORS_PER_TERM   :: 15;
+Working_Set :: struct {
 
-#assert(size_of(Term)        <= 8);
-#assert(size_of(Numerator)   <= 4);
-#assert(size_of(Denominator) <= 4);
+    // The working set acts like a register file for this application.
+    // Load data into the working set, perform operations, then write-back results after evaluation.
 
-SINGLE_COEFFICIENT_DATA_BUFFER_SIZE :: 
-      MAX_TERMS_PER_COEFFICIENT * size_of(Term)
-    + MAX_TERMS_PER_COEFFICIENT * (MAX_NUMERATORS_PER_TERM   * size_of(Numerator))
-    + MAX_TERMS_PER_COEFFICIENT * (MAX_DENOMINATORS_PER_TERM * size_of(Denominator));
+    NUM_BUFFERS :: 3;
+    current_heap_index: int;
+    heaps:   [NUM_BUFFERS] Bump_Heap;
+    buffers: [NUM_BUFFERS][SINGLE_COEFFICIENT_DATA_BUFFER_SIZE] u8;
 
-#assert(1                            * SINGLE_COEFFICIENT_DATA_BUFFER_SIZE <= 2048 );
-#assert(MAX_NUMBER_OF_BASIS_ELEMENTS * SINGLE_COEFFICIENT_DATA_BUFFER_SIZE <= 65536);
+    // The 'aggregrate' section of the working set stores the latest coefficient for a basis term during evaluation of the AST.
+    // Since not every expression uses every available basis term, keep track of which basis elements were part of the expression
+    // to generate the final result.
+
+    aggregate_buffers: [MAX_NUMBER_OF_BASIS_ELEMENTS] [SINGLE_COEFFICIENT_DATA_BUFFER_SIZE] u8;
+    aggregate_heaps:   [MAX_NUMBER_OF_BASIS_ELEMENTS] Bump_Heap;
+
+    updated_basis_elements: [MAX_NUMBER_OF_BASIS_ELEMENTS] int;
+    updated_basis_element_count: int;
+}
+
+initialize_working_set :: (ws: *Working_Set) {
+
+    ws.current_heap_index = -1;
+    for i: 0..Working_Set.NUM_BUFFERS-1 {
+        buffer_start := *ws.buffers[i][0];
+        buffer_end   := *ws.buffers[i][0] + SINGLE_COEFFICIENT_DATA_BUFFER_SIZE;
+        memset(buffer_start, 0, SINGLE_COEFFICIENT_DATA_BUFFER_SIZE);
+
+        heap_init(*ws.heaps[i], buffer_start, buffer_end);   
+    }
+
+    for i: 0..MAX_NUMBER_OF_BASIS_ELEMENTS-1 {
+        buffer_start := *ws.aggregate_buffers[i][0];
+        buffer_end   := *ws.aggregate_buffers[i][0] + SINGLE_COEFFICIENT_DATA_BUFFER_SIZE;
+        memset(buffer_start, 0, SINGLE_COEFFICIENT_DATA_BUFFER_SIZE);
+
+        heap_init(*ws.aggregate_heaps[i], buffer_start, buffer_end);
+
+        // Want to allocate a coefficient in there and point to the heap it is a part of
+
+    }
+
+    ws.updated_basis_element_count = 0;
+
+    return;
+}
+
+reset_working_set :: (ws: *Working_Set) {
+
+    ws.current_heap_index = -1;
+    for i: 0..Working_Set.NUM_BUFFERS-1 {
+        heap_reset_to_checkpoint(*ws.heaps[i]);
+    }
+
+    for i: 0..MAX_NUMBER_OF_BASIS_ELEMENTS-1 {
+        heap_reset_to_checkpoint(*ws.aggregate_heaps[i]);
+    }
+
+    ws.updated_basis_element_count = 0;
+
+    return;
+}
+
+store_coefficient :: (ws: *Working_Set, coefficient: *Coefficient) -> *Coefficient {
+
+    ws.current_heap_index = (ws.current_heap_index + 1) % Working_Set.NUM_BUFFERS;
+
+    heap := *ws.heaps[ws.current_heap_index];
+    heap_reset_to_checkpoint(heap);
+
+    size := get_coefficient_size(coefficient);
+    ws_coefficient := cast(*Coefficient)heap_allocate(heap, size, size_of(Coefficient));
+    assert(ws_coefficient != null);
+
+    memcpy(ws_coefficient, coefficient, size);
+    
+    return ws_coefficient;
+}
+
+load_coefficient :: (ws: *Working_Set, index: int) -> Coefficient {
+    // Loads *aggregate* coefficients from the working set.
+
+    coefficient := 
+    return Coefficient.{};
+}
+
+// new_working_set_coefficient()
+// new_working_set_term()
+// new_working_set_factor()
+// load_working_set_coefficient()
+// which does the same thing as before but allocates in here instead!
+
+// which just copies the same 
+
+
+/*
 
 Aggregate_Basis_Terms :: struct {
     
@@ -49,55 +135,68 @@ Aggregate_Basis_Terms :: struct {
 Working_Set :: struct {
 
     // The working set acts like a register file for this application.
-    // Load basis terms and their coefficient's into the working set, peform operations, then write-back results after evaluation.
-    // Write-back occurs against the 'sums' to track the latest value for a basis element during evaluation.
+    // Load data into the working set, perform operations, then write-back results after evaluation.
 
     NUM_BUFFERS :: 3;
 
-    current_buffer_index: int;
-    buffers:     [NUM_BUFFERS] [SINGLE_COEFFICIENT_DATA_BUFFER_SIZE] u8;
-    basis_terms: [NUM_BUFFERS] Basis_Term;
+    current_heap_index: int;
+    buffers:      [NUM_BUFFERS] [512] u8;
+    coefficients: [NUM_BUFFERS] 
 
     sums: Aggregate_Basis_Terms;
 }
 
-initialize_working_set :: (working_set: *Working_Set) {
 
-    // Initialization needs to set/adjust pointers to the appropriate sections of the statically allocated working set space.
+
+
+
+prepare_buffer :: (working_set: *Working_Set) -> Basis_Term {
+
+    // rotate to next working set buffer.
+    index := working_set.current_heap_index;
+    index  = (index + 1) % Working_Set.NUM_BUFFERS;
+
+    working_set.current_heap_index = index;
+
+    // clear the working set buffer to zero.
+    basis_term := working_set.basis_terms[0];
+ //   copy_basis_term(src = zero(), dst = *basis_term);
     
-    // Initialize working buffers for intermediate calculations.
-    working_set.current_buffer_index = -1;
-    for i: 0..Working_Set.NUM_BUFFERS-1 {
-        working_set.basis_terms[i].basis       = get_basis_element(0);
-        working_set.basis_terms[i].coefficient = cast(*Coefficient)*working_set.buffers[i];
-        memset(working_set.basis_terms[i].coefficient, 0, size_of(Coefficient));
-    }
-
-    // Initialize basis terms sums.
-    for i: 0..MAX_NUMBER_OF_BASIS_ELEMENTS-1 {
-        working_set.sums.basis_terms[i].basis = get_basis_element(i);
-        working_set.sums.basis_terms[i].coefficient = cast(*Coefficient)*working_set.sums.buffer[i];
-        memset(working_set.sums.basis_terms[i].coefficient, 0, size_of(Coefficient));
-    }
+    // return the basis term pointing to the active working set buffer for use in calculations.
+    return basis_term;
 }
 
-reset_working_set :: (working_set: *Working_Set) {
-    
-    // Reset the coefficients in the ring of buffers (but not quite a ring buffer...)
-    // Do *not* adjust pointers that were set on initialization!!!
-
-    working_set.current_buffer_index = -1;
-    working_set.sums.evaluated_basis_term_count = 0;
-
-    for i: 0..Working_Set.NUM_BUFFERS-1 {
-        working_set.basis_terms[i].basis = get_basis_element(0);
-        memset(working_set.basis_terms[i].coefficient, 0, size_of(Coefficient));
-    }
-
-    for i: 0..MAX_NUMBER_OF_BASIS_ELEMENTS-1 {
-        memset(working_set.sums.basis_terms[i].coefficient, 0, size_of(Coefficient));
-    }
+get_aggregate_basis_term :: (working_set: *Working_Set, bitset: int) -> Basis_Term {
+    return working_set.sums.basis_terms[bitset];
 }
+
+mark_aggregated_updated :: (working_set: *Working_Set, index: int) {
+
+    i := working_set.sums.evaluated_basis_term_count;
+
+    working_set.sums.evaluated_basis_terms[i]    = index;
+    working_set.sums.evaluated_basis_term_count += 1;
+}
+
+working_set_to_ast :: (working_set: *Working_Set) -> Ast {
+
+    for i: 0..working_set.sums.evaluated_basis_term_count-1 {
+        index      := working_set.sums.evaluated_basis_terms[i];
+        basis_term := working_set.sums.basis_terms[index];
+        print("Basis term == %\n", basis_term.basis.symbol);
+        print("Coefficient == %\n", coefficient_to_string(basis_term.coefficient));
+    }
+
+
+    ast: Ast;
+    return ast;
+}
+
+*/
+
+#scope_file
+
+
 
 /*
 
@@ -124,18 +223,14 @@ load_coefficient_into_working_set :: (working_set: *Working_Set, input: Coeffici
 
     scratch_coefficient := working_set.scratch_coefficients[index];
 
-    memcpy(cast(*u8)scratch_coefficient.terms, cast(*u8)input.terms, input.byte_size);
+    memcpy(cast(*u8)scratch_coefficient.first_term, cast(*u8)input.first_term, input.byte_size);
 
     return scratch_coefficient;
 }
 */
 
 /*
-mark_coefficient_populated :: (scratch: *Scratch, index: int) {
 
-    scratch.populated_slots[scratch.populated_count] = index;
-    scratch.populated_count += 1;
-}
 
 scratch_to_ast :: (scratch: *Scratch) -> *Ast_Node {
 

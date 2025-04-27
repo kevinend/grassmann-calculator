@@ -18,9 +18,9 @@ build :: () {
 
     add_build_file("./algebra-types.jai",       w);
     add_build_file("./ast.jai",                 w);
-  //    add_build_file("./coefficient.jai",         w); // TODO: 04.13.2025 should be replaced with algebra_types.jai
- //   add_build_file("./eval.jai",                w); // TODO: 04.09 this needs refactored!
+    add_build_file("./eval.jai",                w);
     add_build_file("./exterior-space.jai",      w);
+    add_build_file("./bump-heap.jai",           w);
     add_build_file("./input.jai",               w);
     add_build_file("./lexer.jai",               w);
     add_build_file("./main.jai",                w);
@@ -36,6 +36,11 @@ build :: () {
     add_build_file("./ast-transforms/flatten.jai",             w);
     add_build_file("./ast-transforms/resolve-symbols.jai",     w);
     add_build_file("./ast-transforms/semantic-check.jai",      w);
+
+  //    add_build_file("./coefficient.jai",         w); // TODO: 04.13.2025 should be replaced with algebra_types.jai
+
+ 
+    
 
     // The dc (during compile) option tells the compiler not to emit output for this metaprogram file while building our application.
     set_build_options_dc(.{do_output=false});

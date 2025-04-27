@@ -1,223 +1,158 @@
 #scope_export
 
-term_zero :: Term.{ value = 0 };
-term_one  :: Term.{ value = 1 };
-
-coefficient_zero: Coefficient;
-coefficient_one:  Coefficient;
-
 Factor :: struct {
     exponent: s16;
     scalar_variable: u16;
 }
 
+Numerator   :: Factor;
+Denominator :: Factor;
+
 Term :: struct {
     value: float;
     #place value; multiples: float;
 
-    numerators:  [] Factor;
-    denominator: [] Factor;
+    // .counts are signed to prevent underflow when using 'for i: 0..count-1' when numerators or denominators are zero.
+    numerator_count:   s8 = 0;
+    denominator_count: s8 = 0;
+    next: Relative_Pointer(Term);
 }
 
 Coefficient :: struct {
-    terms: [] Term;
+    // Context-dependent value based on the currently evaluated expression.
+    // The total byte size includes the size of the coefficient struct, n-terms and m-numerators and k-denominators.
+    total_byte_size: u32;
+    term_count:      u16;
+    first_term:      Relative_Pointer(Term);
 }
 
+Basis_Element :: struct {
+    // Immutable defintion of a basis element from grade [0,n] in the currently declared space.
+    grade:  int;
+    bitset: int;
+    symbol: string;
+}
+
+Basis_Term :: struct {
+    // Represents a single basis element term in an expression such as 3e1 or (a1a2)e1^e2.
+    basis:       *Basis_Element;
+    coefficient:  Coefficient;
+}
+
+Relative_Pointer :: struct (T: Type) {
+    // Offset is declared as an unsigned integer so that all references are located higher in memory!
+    offset: u16;
+}
+
+assign :: inline (ptr: *Relative_Pointer($T), next: *T) {
+    // *Assumes* forward references! Relative pointer calculation will be incorrect if it points into a lower address than it's current location.
+    ptr.offset = 0;
+    if next { ptr.offset = cast(u16)(cast(u64)next - cast(u64)ptr); }
+}
+
+next :: inline (ptr: Relative_Pointer($T)) -> *T {
+    return cast(*T)(cast(*u8)*ptr.offset + ptr.offset);
+}
+
+starting_term :: (coefficient: *Coefficient) -> *Term {
+    return next(coefficient.first_term);
+}
+
+next_term :: (term: *Term) -> *Term {
+    return next(term.next);
+}
+
+term_size :: (term: *Term) -> u32 {
+    return cast(u32)(size_of(Term) + (term.numerator_count * size_of(Numerator)) + (term.denominator_count * size_of(Denominator)));
+}
+
+coefficient_buffer:  [4097] u8;
+coefficient_allocator: [] u8 = coefficient_buffer;
+
+// We want to use a custom allocator that we can pass through here.
+// So it needs to adhere to the type
+// Then when we get to the thing we need to pass it through, so something like
+// The following:
+
+/*
+    The 'Allocator' type is simply a package that associates a function to
+    a set of data (this is the heap).
+
+    So you can use it on it's own or you can make it an 'Allocator'.
+    
+    pool: Flat_Pool;
+    a: Allocator;
+    a.proc = flat_pool_allocator_proc;
+    a.data = *pool;
+    thing := New(Thing,, a); // then you supply the allocator
+
+    or you can interact with it directly.
+    that is the kind of confusing part about it but I guess it makes sense in a certain respect.
+
+    New()
+    alloc() --> takes the context.allocator() and uses the allocator data, so this is a pointer to your flat pool.
+
+    so in our case we need to use this allocator for everything related to a coefficient.
+    New(Coefficient , Allocator)
+    New(Term, Allocator)
+
+    You would have to supply that everywhere and then when you did the working set you need to flip
+    Flop around, so you would have an allocator for each and then the 'swap_buffers()' is really to swap the allocators
+
+    allocators: [2] Allocator;
+    allocators[0].proc -> Flat_Pool_Allocator_Proc()
+    allocators[0].data -> Flat_Pool
+
+    You don't want to supply this to the context because temp allocations could go in the wrong place.
+    Could the working set just manage the allocators?
+
+    coefficient_pool_0: 
+
+    allocators[0].proc = 
+    allocators[0].data = *coefficient_pool_0
+    allocators[1].data = *coefficient_pool_1;
+
+    Fixed_Block_Allocator
+    M
+    
+
+*/
+
+
 main :: () {
-    {
-        Relative_Pointer :: struct (T: Type) {
-            offset: u16;
-        }
-
-        Factor2 :: struct {
-            exponent: s16;
-            scalar_variable: u16;
-        }
-
-        Numerator2   :: Factor2;
-        Denominator2 :: Factor2;
-
-        Term2 :: struct {
-            value: float;
-            #place value; multiples: float;
-
-            // .counts are signed to prevent underflow when using 'for i: 0..count-1' when numerators or denominators are zero.
-            numerator_count:   s8 = 0;
-            denominator_count: s8 = 0;
-            next: Relative_Pointer(Term);
-        }
-
-        Coefficient2 :: struct {
-            term_count: int;
-            terms:      *Term;
-        }
-        MAX_TERMS_PER_COEFFICIENT   :: 16;
-        MAX_NUMERATORS_PER_TERM     :: 15;
-        MAX_DENOMINATORS_PER_TERM   :: 15;
-
-        MAX_NUMBER_OF_BASIS_ELEMENTS :: 32;
-
-        #assert(size_of(Term2)        <= 8);
-        #assert(size_of(Numerator2)   <= 4);
-        #assert(size_of(Denominator2) <= 4);
-
-        // The scratch buffer stores the coefficient for a *single* basis element.
-        SCRATCH_BUFFER_SIZE :: 
-            MAX_TERMS_PER_COEFFICIENT * size_of(Term2)
-            + MAX_TERMS_PER_COEFFICIENT * (MAX_NUMERATORS_PER_TERM * size_of(Numerator2))
-            + MAX_TERMS_PER_COEFFICIENT * (MAX_DENOMINATORS_PER_TERM * size_of(Denominator2));
-
-        // Total scratch space *assumes* that each and every basis element has a coefficient that uses the maximum space.
-        TOTAL_SCRATCH_SPACE :: MAX_NUMBER_OF_BASIS_ELEMENTS  * SCRATCH_BUFFER_SIZE;
-
-        print("Scratch buffer size == %\n", SCRATCH_BUFFER_SIZE); // 2112 --> 2048
-        print("Total scratch space == %\n", TOTAL_SCRATCH_SPACE );
-    }
-
-    // Just write this down:
-    //  "Lines remain parallel and evenly spaced"
-    //  Parallel lines are every where equidistant so if lines remain parallel then distances from one parallel line to another doesn't change.
-    //  Evenly spaced is across a set of parallel lines
-    //     -------------
-    //     -------------
-    //
-    //     ------------- these remain parallel but the distance between them is distored since B and C are twice as far apart
-
-    {
-        // Generating results *can* create a lot of temporary overhead.
-        // A fixed-sized 'scratch' space is allocated on application start-up. The limits are chosen based on expected usage, primarily
-        // with a Grassmann 4D space where each element in an expression is set with either the scalar 1 like '1*e1' or a single
-        // scalar variable like 'a1*e1'. With the current limits expressions such as (a1+a2+a3+a4+a5+a6+a7+a8)e1 and
-        // (a1a2a3a4..a16 + b1b2b3b4...b16 + c1c2c3c4...c16 + ..)e1 are possible.
-        //
-        // Depending on the expression, this space can sit 99% unused. It is the price of doing business. The application asserts
-        // that no more than 64Kib is being allocated to the space so we know up-front the upper limit of space reserved.
-        //
-        // Tweaking the max number of numerator or denominator factors only affects their total usage.
-        // Increasing the allowable max dimension of the space or the max number of terms allowed per coefficient *can* substantially
-        // grow the required scratch space. If it needs bumped up, then so be it, but the current configuration covers my intended
-        // use cases.
-
-        MAX_NUMBER_OF_BASIS_ELEMENTS  :: 32;
-
-        COEFFICIENT_PER_BASIS_ELEMENT :: 1;
-        MAX_TERMS_PER_COEFFICIENT     :: 8;
-        MAX_NUMERATORS_PER_TERM       :: 16;
-        MAX_DENOMINATORS_PER_TERM     :: 16;
-
-        TERM_SCRATCH_SPACE                    :: (                            MAX_TERMS_PER_COEFFICIENT * COEFFICIENT_PER_BASIS_ELEMENT * MAX_NUMBER_OF_BASIS_ELEMENTS) * size_of(Term);
-        NUMERATOR_SCRATCH_SPACE               :: (MAX_NUMERATORS_PER_TERM   * MAX_TERMS_PER_COEFFICIENT * COEFFICIENT_PER_BASIS_ELEMENT * MAX_NUMBER_OF_BASIS_ELEMENTS) * size_of(Factor);
-        DENOMINATOR_SCRATCH_SPACE             :: (MAX_DENOMINATORS_PER_TERM * MAX_TERMS_PER_COEFFICIENT * COEFFICIENT_PER_BASIS_ELEMENT * MAX_NUMBER_OF_BASIS_ELEMENTS) * size_of(Factor);
-        WORKING_SET_TERM_SCRATCH_SPACE        :: (                            MAX_TERMS_PER_COEFFICIENT * COEFFICIENT_PER_BASIS_ELEMENT                               ) * size_of(Term);
-        WORKING_SET_NUMERATOR_SCRATCH_SPACE   :: (MAX_NUMERATORS_PER_TERM   * MAX_TERMS_PER_COEFFICIENT * COEFFICIENT_PER_BASIS_ELEMENT                               ) * size_of(Factor);
-        WORKING_SET_DENOMINATOR_SCRATCH_SPACE :: (MAX_DENOMINATORS_PER_TERM * MAX_TERMS_PER_COEFFICIENT * COEFFICIENT_PER_BASIS_ELEMENT                               ) * size_of(Factor);
-
-        TOTAL_SCRATCH_SPACE :: 
-              TERM_SCRATCH_SPACE 
-            + NUMERATOR_SCRATCH_SPACE 
-            + DENOMINATOR_SCRATCH_SPACE 
-            + WORKING_SET_TERM_SCRATCH_SPACE
-            + WORKING_SET_NUMERATOR_SCRATCH_SPACE
-            + WORKING_SET_DENOMINATOR_SCRATCH_SPACE;
-
-        #assert(TOTAL_SCRATCH_SPACE < 65536 );
-
-        print("TERM_SCRATCH_SPACE                    == %\n", TERM_SCRATCH_SPACE);
-        print("NUMERATOR_SCRATCH_SPACE               == %\n", NUMERATOR_SCRATCH_SPACE);
-        print("DENOMINATOR_SCRATCH_SPACE             == %\n", DENOMINATOR_SCRATCH_SPACE);
-        print("WORKING_SET TERM SCRATCH SPACE        == %\n", WORKING_SET_TERM_SCRATCH_SPACE);
-        print("WORKING_SET NUMERATOR SCRATCH SPACE   == %\n", WORKING_SET_NUMERATOR_SCRATCH_SPACE);
-        print("WORKING_SET DENOMINATOR SCRATCH SPACE == %\n", WORKING_SET_DENOMINATOR_SCRATCH_SPACE);
-    }
     
-    // TODO: Use this in a separate file called 'Scratch.jai' 
-
-    MAX_NUMERATORS_PER_TERM      :: 100;
-    MAX_DENOMINATORS_PER_TERM    :: 100;
-
-    MAX_TERMS_PER_BASIS_ELEMENT  :: 10;
-
-    COEFFICIENT_SCRATCH_SPACE_PER_BASIS_ELEMENT :: MAX_TERMS_PER_BASIS_ELEMENT * size_of(Term);
-    MAX_NUMBER_OF_BASIS_ELEMENTS :: 16;
-
-    TOTAL_TERM_SCRATCH_SPACE        :: MAX_NUMBER_OF_BASIS_ELEMENTS * (MAX_TERMS_PER_BASIS_ELEMENT * size_of(Term));
-    TOTAL_NUMERATOR_SCRATCH_SPACE   :: MAX_NUMBER_OF_BASIS_ELEMENTS * (MAX_TERMS_PER_BASIS_ELEMENT * MAX_NUMERATORS_PER_TERM) * size_of(Factor);
-    TOTAL_DENOMINATOR_SCRATCH_SPACE :: MAX_NUMBER_OF_BASIS_ELEMENTS * (MAX_TERMS_PER_BASIS_ELEMENT * MAX_NUMERATORS_PER_TERM) * size_of(Factor);
-
-    print("Total term scratch space == %\n", TOTAL_TERM_SCRATCH_SPACE);
-    print("Total numerator scratch space == %\n", TOTAL_NUMERATOR_SCRATCH_SPACE);
-    print("Total denominator scratch space == %\n", TOTAL_DENOMINATOR_SCRATCH_SPACE);
-
-
-    // High water mark to make sure I don't change any of the settings and start allocating more memory than I intend.
-    // 64kb on a modern system is literally nothing but just a sanity check since we are under 4kb of scratch space at the moment.
-    #assert(TOTAL_TERM_SCRATCH_SPACE < 65536); 
-
-    Scratch :: struct {
-        numerators:    [TOTAL_NUMERATOR_SCRATCH_SPACE]   u8;
-        denominators:  [TOTAL_DENOMINATOR_SCRATCH_SPACE] u8;
-        terms:         [TOTAL_TERM_SCRATCH_SPACE] u8;
-        coefficients:  [MAX_NUMBER_OF_BASIS_ELEMENTS] Coefficient; // Each index represents the current result for that basis element during evaluation
-    }
-
-    scratch: Scratch;
-    init_scratch_space :: (scratch: *Scratch) { // TODO: call this on program startup!
-        // Space is statically allocated, just adjust the pointers for the coefficients to their respective sections of the scratch buffer
-        for i: 0..MAX_NUMBER_OF_BASIS_ELEMENTS-1 {
-            scratch.coefficients[i].terms.data = cast(*Term)*scratch.terms[i * COEFFICIENT_SCRATCH_SPACE_PER_BASIS_ELEMENT];
-            scratch.coefficients[i].terms.count = 0;
-        }
-    }
-
-    reset_scratch_space :: (scratch: *Scratch) {
-        // Do *not* adjust the pointers into the scratch space buffer, just reset counts back to zero.
-        for i: 0..MAX_NUMBER_OF_BASIS_ELEMENTS-1 {
-            scratch.coefficients[i].terms.count = 0;
-        }
-    }
-
-    init_scratch_space(*scratch);
-    for i: 0..MAX_NUMBER_OF_BASIS_ELEMENTS-1 {
-        diff := cast(u64)scratch.coefficients[i].terms.data - cast(u64)scratch.terms.data;
-        print("Diff == %\n", diff);
-    }
-
-    reset_scratch_space(*scratch);
-
-  
-    init_coefficients :: () { // TODO: call this on startup!
-        coefficient_zero.terms.data  = *term_zero;
-        coefficient_zero.terms.count = 1;
+    {
         
-        coefficient_one.terms.data = *term_one;
-        coefficient_one.terms.count = 1;
-
-        return;
     }
 
-    zero :: () -> Coefficient {
-        return coefficient_zero;
-    }
+    // coefficient_pool; stores coefficient and related data.
 
-    one :: () -> Coefficient {
-        return coefficient_one;
-    } 
+    pool: Flat_Pool;
+    init(*pool, 4096); // use the default alignment of 8 since it matches our Coefficient, Term and Factor size.
 
-    // THIS ENDS SCRATCH SPACE!
+    coefficient := cast(*Coefficient)get(*pool, size_of(Coefficient));
 
-    /*
-        We create a new number:
-          Basis element with a new coefficient
-          When we resolve the identifier then we can point to this so e0 + e1 + e2 + e3 no longer allocates 64 * 4
-          Coefficient is a List(Term) --> allocate space for a term, create the term and store it in that location. (this is in temporary storage)
+    term := cast(*Term)get(*pool, size_of(Term));
+    term.multiples = 10;
 
-          The scratch space should just store 0 and 1, that is the space for them!
+    term2 := cast(*Term)get(*pool, size_of(Term));
+    term2.multiples = 20;
 
-        
+    x := cast(*u8)get(*pool, 4096);
 
-    */
+    assign(*coefficient.first_term, term);
+    assign(*term.next, term2);
 
-    
+    first  := starting_term(coefficient);
+    second := next_term(first);
+
+    coefficient.term_count = 2;
+    coefficient.total_byte_size = size_of(Coefficient) + term_size(term) + term_size(term2);
+
+    print("Starting term value == %\n", first.value);
+    print("Second term value == %\n",   second.value);
+
+    print("Pool difference == %\n", pool.current_point - pool.memory_base);
 
 
     // These are the actual test cases that need moved into an automated build cycle.
@@ -345,3 +280,4 @@ main :: () {
 #scope_file
 #import "Basic";
 #import "Hash_Table";
+#import "Flat_Pool";

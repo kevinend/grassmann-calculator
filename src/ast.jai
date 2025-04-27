@@ -50,7 +50,7 @@ Variable_Node :: struct {
 Basis_Term_Node :: struct {
     #as using _kind: Ast_Node;
 
-    using components: Basis_Term; 
+    using basis_term: Basis_Term; 
 }
 
 Unary_Operator_Node :: struct {

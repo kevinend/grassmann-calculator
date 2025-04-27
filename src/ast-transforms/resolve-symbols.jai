@@ -35,7 +35,7 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
         // Check if identifier matches one of the currently declared basis 1-elements.
         basis_1_element := matches_1_element(ident.name);
         if basis_1_element { 
-            coefficient     := coefficient_one();
+            coefficient     := one();
             basis_term_node := new_basis_term_node(ident.node_id, coefficient, basis_1_element);
 
             return basis_term_node;
@@ -46,7 +46,7 @@ resolve :: (node: *Ast_Node, parent: *Ast_Node, space: *Exterior_Space) -> *Ast_
         if match {
             valid := valid_scalar_variable(ident.name);
             if valid {
-                coefficient     := new_coefficient(multiples = 1, exponent = 1, scalar_variable = ident.name);
+                coefficient     := new_coefficient(multiples = 1, .Numerator, exponent = 1, scalar_variable = ident.name, coefficient_heap);
                 basis           := get_basis_element(0);
                 basis_term_node := new_basis_term_node(ident.node_id, coefficient, basis);
 

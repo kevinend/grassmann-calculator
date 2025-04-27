@@ -55,16 +55,15 @@
 */
 
 Relative_Pointer :: struct (T: Type) {
-    // Offset is declared as an unsigned integer so that all references are located higher in memory!
-    offset: u16;
+    // reference can't exceed -32,768 to 32,767 bytes from the relative pointer's location
+    offset: s16;
 }
 
-assign :: inline (ptr: *Relative_Pointer($T), next: *T) {
-    // *Assumes* forward references! Relative pointer calculation will be incorrect if it points into a lower address than it's current location.
+set :: inline (ptr: *Relative_Pointer($T), next: *T) {
     ptr.offset = 0;
-    if next { ptr.offset = cast(u16)(cast(u64)next - cast(u64)ptr); }
+    if next { ptr.offset = cast(s16)(cast(s64)next - cast(s64)ptr); }
 }
 
-next :: inline (ptr: Relative_Pointer($T)) -> *T {
+get :: inline (ptr: Relative_Pointer($T)) -> *T {
     return cast(*T)(cast(*u8)*ptr.offset + ptr.offset);
 }

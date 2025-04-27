@@ -22,6 +22,7 @@
 Factor :: struct {
     exponent: s16;
     scalar_variable: u16;
+    pack: [4] u8;
 }
 
 Numerator   :: Factor;
@@ -38,27 +39,17 @@ Term :: struct {
 }
 
 Coefficient :: struct {
-    terms:      *Term;
     term_count:  int;
     byte_size:   int;
 }
 
-// Set once and reuse.
-term_zero :: Term.{ value = 0 };
-term_one  :: Term.{ value = 1 };
-
-coefficient_zero: Coefficient;
-coefficient_one:  Coefficient;
+#assert(size_of(Factor) == size_of(Term) == size_of(Coefficient) == 8);
 
 initialize_coefficients :: () {
 
-    coefficient_zero.terms = *term_zero;
-    coefficient_zero.term_count = 1;
-    coefficient_zero.byte_size  = size_of(Term);
-
-    coefficient_one.terms = *term_one;
-    coefficient_one.term_count = 1;
-    coefficient_one.byte_size  = size_of(Term);
+    coefficient_allocator = coefficient_buffer;
+    zero := new_coefficient(0, coefficient_heap);
+    one  := new_coefficient(1, coefficient_heap);
 
     return;
 }
@@ -73,20 +64,20 @@ one :: () -> Coefficient {
 
 new_term :: (value: float) -> *Term {
 
-    term := cast(*Term)alloc(1*size_of(Term));
+    term := cast(*Term)allocate_bytes(*coefficient_allocator, size_of(Coefficient));
     assert(term != null);
 
     term.value = value;
     return term;
 }
 
-new_coefficient :: (value: float) -> Coefficient {
+new_coefficient :: (value: float) -> *Coefficient {
 
-    coefficient: Coefficient;
+    coefficient := cast(*Coefficient)allocate_bytes(*coefficient_allocator, size_of(Coefficient));
+    new_term(value);
 
-    coefficient.terms = new_term(value);
     coefficient.term_count = 1;
-    coefficient.byte_size  = size_of(Term);
+    coefficient.byte_size  = size_of(Coefficient) + size_of(Term);
 
     return coefficient;
 }
@@ -287,6 +278,39 @@ coefficient_to_string :: (coefficient: Coefficient) -> string {
 }
 
 #scope_file
+
+// Packed array that contains all coefficients (and corresponding Coefficient data) during parsing and AST tree transforms.
+// Data is contiguous and looks like the following:
+// [Coefficient_0, Term_0, Numerator_0, Numerator_1, ..., Denominator_0, Denominator_1... | Coefficient_1, Term_1, Numerator_0, ...]
+//
+// The coefficients for zero (0) and one (1) are placed at the front of the array and reused on every execution.
+// The coefficients allocated after the term "1" are reset after each execution of an expression.
+//
+// Each element stored in the array *must* be 8 bytes at this time. The size of the array was chosen to fit a reasonable number
+// of elements inside though the choice was arbitrary. If we need a bigger coefficient buffer then we will bump it up. 04.21.2025.
+//
+
+coefficient_buffer :: [4096] u8;
+coefficient_allocator: [] u8;
+
+// Set once and reuse.
+term_zero :: Term.{ value = 0 };
+term_one  :: Term.{ value = 1 };
+
+coefficient_zero: Coefficient;
+coefficient_one:  Coefficient;
+
+allocate_bytes :: (allocator: *[]u8, size: int) -> *u8 {
+    
+    assert(size <= allocator.count);
+
+    ptr := allocator.data;
+    allocator.data  += size;
+    allocator.count -= size;
+
+    return ptr;
+}
+
 
 term_is_number :: inline (term: *Term) -> bool {
     return term.numerator_count == 0 && term.denominator_count == 0;

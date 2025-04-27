@@ -44,13 +44,15 @@ main :: () {
     // *Must* update the exterior space before initializing other data structures!
     update_exterior_space(default_dimension, default_1_elements, default_scalar_variable_prefix_characters);
     initialize_operator_tables();
-    initialize_canonical_basis_terms();
+    initialize_coefficient_heap();
     initialize_working_set(*working_set);
+
+    print("Coefficient == %\n", size_of(Coefficient));
+    print("Term        == %\n", size_of(Term));
 
 	while !quit {
 
-        report_temporary_storage_metrics();
-        reset_temporary_storage();
+        
 
 		print("%", USER_PROMPT);
 		success, input = read_line();
@@ -101,6 +103,18 @@ main :: () {
             continue;
         }
 
+        ast = simplify(ast, *working_set); // well it didn't crash so that is good!
+
+
+/*
+        if ast_represents_assignment(ast) {
+            // do nothing for now 
+        }
+        else {
+            ast = simplify(ast, *working_set);
+        }
+*/
+
 
 /*
     04.08.2025 -- There is no more scratch space. This is called working_set, need to handle intialization and stuff.
@@ -115,6 +129,12 @@ main :: () {
           //  print("%\n", result);
         }
 */
+        report_temporary_storage_metrics();
+        report_coefficient_heap_metrics();
+        reset_temporary_storage();
+        reset_coefficient_heap();
+        reset_working_set(*working_set);
+
     }
 }
 
@@ -134,5 +154,6 @@ report_temporary_storage_metrics :: () {
         print("Current_page_bytes_occupied == %\n", ts.current_page_bytes_occupied);
         print("Total bytes occupied == %\n", ts.total_bytes_occupied);
         print("High water mark == %\n", ts.high_water_mark);
+        print("\n");
     }
 }

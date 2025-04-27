@@ -6,7 +6,7 @@
     Products and unary operators are 'local' operations. While traversing the tree you can evaluate their children
     then evaluate the current product operation. Additional tree traversal only occurs 'locally' from that operator node.
 
-    Summation has to occur *across* branches of the tree since evaluation of products can generate the same basis element
+    Summation has to occur *across* branches of the tree since evaluation of products can generate the same basis term
     in different branches or depths of the tree.
 
     Some products are anticommutative (exterior and regressive).
@@ -16,7 +16,7 @@
 
     When written on paper the product e1 ^ (e0^e2) is comprised of a lhs e1, and rhs e0^e2.
     If we want to write the product as -e0^e1^e2 we swap e1 and e0 and negate the product. 
-    Notice that the *right*-most element of the lhs is next to the *left*-most element of the rhs.
+    Notice that the *right*-most element of the lhs is next to the *left*-most element of the rhs visually.
 
     The above doesn't hold from our current implmentation of basis elements being the OR of single bits representing individual basis elements.
     Below is how these elements are juxtaposed against one another in memory.
@@ -36,6 +36,7 @@
 
 #scope_export
 
+/*
 simplify_and_assign :: (ast: Ast, user_variables: *Table(string, *Ast_Node), scratch: *Scratch) {
 
     reset_scratch_space(scratch);
@@ -58,20 +59,21 @@ simplify_and_assign :: (ast: Ast, user_variables: *Table(string, *Ast_Node), scr
 
     return;
 }
+*/
 
-simplify :: (ast: Ast, scratch: *Scratch) -> Ast {
+simplify :: (ast: Ast, working_set: *Working_Set) -> Ast {
 
     output: Ast;
     
-    reset_scratch_space(scratch);
+    reset_working_set(working_set);
 
-    expression   := ast.root;
-    eval_context := context;
-    eval_context.allocator = temp;
-    push_context eval_context {
-        partial_result := eval(expression);
-        sum(partial_result, scratch);
-        output.root = scratch_to_ast(scratch);
+    expression := ast.root;
+    eval(expression, null, working_set);
+
+    ast_generation_context := context;
+    ast_generation_context.allocator = temp;
+    push_context ast_generation_context {
+//        output = working_set_to_ast(working_set);
     }
     
     return output;
@@ -79,10 +81,238 @@ simplify :: (ast: Ast, scratch: *Scratch) -> Ast {
 
 #scope_file
 
-Complement_Type :: enum {
-    Left;
-    Right;
+// Utility functions for Grassmann products that operate on individual bits.
+bit_is_set :: inline (bitset: int, bit: int) -> bool {
+    return (bitset & (1 << bit)) != 0;
 }
+
+set_bit :: inline (bitset: *int, bit: int) {
+    bitset.* |= (1 << bit);
+}
+
+eval :: (node: *Ast_Node, parent: *Ast_Node, working_set: *Working_Set) -> *Ast_Node {
+
+    basis_term_node: *Basis_Term_Node = null;
+    if node.kind == .Basis_Term {
+        basis_term_node := cast(*Basis_Term_Node)node;
+        basis_term_node.coefficient = store_coefficient(working_set, basis_term_node.coefficient);
+    }
+
+    if parent == null {
+        bitset := get_basis_bitset(basis_term_node.basis_term);
+
+        accumulated_basis_coefficient := load_coefficient(working_set, bitset);
+
+        result := store_cofficient(working_set, zero());
+        sum(basis_term_node.coefficient, accumulated_basis_coefficient, result);
+
+        update_coefficient(working_set, bitset, result);
+    }
+}
+
+/*
+
+        output := prepare_buffer(working_set);
+
+        sum(arg, aggregate, *output);
+        copy_basis_term(output, *aggregate);
+
+        mark_aggregated_updated(working_set, bitset);
+
+        return null;
+    }
+    else {
+        return basis_term;
+    }
+*/
+      
+}
+
+/*
+ Starting over with eval on 04.26.2025
+
+eval :: (node: *Ast_Node, parent: *Ast_Node, working_set: *Working_Set) {
+
+    if node.kind == .Basis_Term {
+        current = cast(*Basis_Term_Node)node;
+        current.coefficient = load_working_set_coefficient(working_set, current.coefficient);
+    }
+
+    // This is the processing part!
+    if parent == .null || parent == .Addition {
+        basis := result.element.basis;
+        lhs   := result.coefficient;
+
+        rhs   := get_basis_coefficient(working_set, basis);
+
+        results := get_next_buffer(working_set);
+        sum     := add_coefficients(lhs, rhs, results);
+        update_basis_coefficient(working_set, basis, sum);
+
+        reset_buffers(working_set);
+    }
+    else {
+        return result;
+    }
+
+    return current;
+
+/* Trust no one!
+    else
+    if node.kind == .Unary_Operator {
+        unary_op := cast(*Unary_Operator_Node)node;
+        unary_op.rhs = eval(unary_op.rhs, unary_op, working_set);
+
+        assert(unary_op.rhs.kind == .Basis_Term);
+        rhs := cast(*Basis_Term_Node)unary_op.rhs;
+
+        output := prepare_buffer(working_set);
+
+        if unary_op.op == {
+            case .Negation;         { negate    (              rhs.basis_term, *output); }
+            case .Left_Complement;  { complement(left = true,  rhs.basis_term, *output); }
+            case .Right_Complement; { complement(left = false, rhs.basis_term, *output); }
+        }
+
+        result_node = rhs;
+        result_node.basis_term = output;
+    }
+
+    result: *Element_Node = null;
+    if node.kind == .Element {
+        element := cast(*Element_Node)node;
+        
+
+        rotate_active_scratch_buffer(working_set);
+        element.coefficient = load_coefficient_into_working_set(working_set, element.coefficient);
+
+        result = element;
+    }
+    else
+    if node.kind == .Unary_Operator {
+        unary_op    := cast(*Unary_Operator)node;
+        unary_op.rhs = eval(unary_op.rhs, unary_op);
+
+        assert(unary_op.rhs == .Element);
+        element := cast(*Element_Node)unary_op.rhs;
+    
+        if unary_op.op == {
+            case .Negation;         { result = negate(element); }
+            case .Left_Complement;  { result = complement(Complement_Type.Left,  element); }
+            case .Right_Complement; { result = complement(Complement_Type.Right, element); }
+        }
+    }
+    else
+    if node.kind == .Associative_Operator {
+        associative_op := cast(*Associative_Operator)node;
+        args := associative_op.args;
+
+        if associative_op.op == .Addition {
+            // Addition is deferred until down below.
+            for i: 0..args.count-1 { eval(args[i]); }
+        }
+        else {
+            lhs := eval(args[0]);
+            for i: 1..args.count-1 {
+                rhs := eval(args[i]);
+
+                rotate_active_scratch_buffer(working_set);
+                intermediate := get_scratch_cofficient(working_set); // could we load zero in here?
+
+                if associative_op.op == {
+                    case .Exterior_Product;    { result = exterior_product  (lhs, rhs, intermediate); }
+                    case .Regressive_Product;  { result = regressive_product(lhs, rhs, intermediate); }
+                }
+                lhs = result;
+            }
+        }
+    }
+
+    if parent == .null || parent == .Addition {
+        basis := result.element.basis;
+        lhs   := result.coefficient;
+
+        rhs   := get_basis_coefficient(working_set, basis);
+
+        results := get_next_buffer(working_set);
+        sum     := add_coefficients(lhs, rhs, results);
+        update_basis_coefficient(working_set, basis, sum);
+
+        reset_buffers(working_set);
+    }
+    else {
+        return result;
+    }
+
+*/ 
+}
+
+*/
+
+/*
+eval :: (node: *Ast_Node, parent: *Ast_Node, working_set: *Working_Set) -> *Ast_Node {
+
+    result_node: *Basis_Term_Node = null;
+    if node.kind == .Basis_Term {
+        result_node = cast(*Basis_Term_Node)node;
+    }
+    else
+    if node.kind == .Unary_Operator {
+        unary_op := cast(*Unary_Operator_Node)node;
+        unary_op.rhs = eval(unary_op.rhs, unary_op, working_set);
+
+        assert(unary_op.rhs.kind == .Basis_Term);
+        rhs := cast(*Basis_Term_Node)unary_op.rhs;
+
+        output := prepare_buffer(working_set);
+
+        if unary_op.op == {
+            case .Negation;         { negate    (              rhs.basis_term, *output); }
+            case .Left_Complement;  { complement(left = true,  rhs.basis_term, *output); }
+            case .Right_Complement; { complement(left = false, rhs.basis_term, *output); }
+        }
+
+        result_node = rhs;
+        result_node.basis_term = output;
+    }
+
+    if parent == null { // TODO: 04.15.2025 needs parent.kind == .Addition
+
+        bitset    := result_node.basis_term.basis.bitset;
+        arg       := result_node.basis_term;
+        aggregate := get_aggregate_basis_term(working_set, bitset);
+
+        output := prepare_buffer(working_set);
+
+        sum(arg, aggregate, *output);
+        copy_basis_term(output, *aggregate);
+
+        mark_aggregated_updated(working_set, bitset);
+
+        return null;
+    }
+    else {
+        return result_node;
+    }
+
+
+    /* This is the previous logic from the other day 04.14.2025
+        basis := result.element.basis;
+        lhs   := result.coefficient;
+
+        rhs   := get_basis_coefficient(working_set, basis);
+
+        results := get_next_buffer(working_set);
+        sum     := add_coefficients(lhs, rhs, results);
+        update_basis_coefficient(working_set, basis, sum);
+
+        reset_buffers(working_set);
+    */
+    
+}
+*/
+
+/*
 
 // TODO: 04.12.2025
 // result := load_element_into_working_set(working_set, element);
@@ -416,11 +646,6 @@ sum :: (node: *Ast_Node, scratch: *Scratch) {
     return;
 }
 
-// Utility functions for Grassmann products that operate on individual bits.
-bit_is_set :: inline (bitset: int, bit: int) -> bool {
-    return (bitset & (1 << bit)) != 0;
-}
 
-set_bit :: inline (bitset: *int, bit: int) {
-    bitset.* |= (1 << bit);
-}
+
+*/
