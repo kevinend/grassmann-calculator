@@ -111,7 +111,7 @@ Basis_Term :: struct {
     coefficient: *Coefficient;
 }
 
-get_basis_bitset :: (basis_term: *Basis_Term) -> int {
+get_basis_bitset :: (basis_term: Basis_Term) -> int {
     return basis_term.basis.bitset;
 }
 
@@ -223,12 +223,31 @@ append_factor :: (factor: *Factor, term: *Term) {
 }
 
 get_coefficient_size :: (coefficient: *Coefficient) -> int {
-    start := cast(*u8)coefficient;
 
+    start := cast(*u8)coefficient;
     last  := get(coefficient.last_term);
     end   := cast(*u8)(get(last.factors) + last.factor_count);
 
     return end - start;
+}
+
+terms_are_equal :: (Lterm: *Term, Rterm: *Term) -> bool {
+    
+    // Terms are equal when the following conditions are true.
+	//  1. Each term contains the same number of factors (even if the count is zero).
+	//  2. Each term contains the same factors in the same order.
+	//  3. Each factor in the term is raised to the same power.
+	if Lterm.factor_count == Rterm.factor_count {
+		count := Lterm.factor_count;
+        Lfactors := cast(*u8)get(*Lterm.factors);
+        Rfactors := cast(*u8)get(*Rterm.factors);
+
+        comp  := memcmp(Lfactors, Rfactors, count * size_of(Factor)) == 0;
+        return comp;
+	}
+	else {
+		return false;
+	}
 }
 
 initialize_coefficient_heap :: () {
@@ -314,12 +333,31 @@ report_coefficient_heap_metrics :: () {
     return;
 }
 
-negate :: (input: Basis_Term, output: *Basis_Term) {
-    return;
-}
+sum :: (lhs: *Coefficient, rhs: *Coefficient) -> *Coefficient {
 
-complement :: (left: bool, k: Basis_Term, result: *Basis_Term ) { return; }
-sum        :: (lhs: Basis_Term, rhs: Basis_Term, result: *Basis_Term) { return; }
+    Lterm := get(lhs.first_term);
+    for i: 0..lhs.term_count-1 {
+        Rterm := get(rhs.first_term); 
+        for j: 0..rhs.term_count-1 {
+            if terms_are_equal(Lterm, Rterm) {
+                Lterm.multiples += Rterm.multiples;
+                remove_term(Rterm, rhs);
+            }
+            Rterm = next_term(Rterm);
+        }
+        Lterm = next_term(Lterm);
+    }
+
+    // copy and append the remaining terms from the RHS that could *not* be combined with the LHS.
+    Rterm := get(rhs.first_term);
+    for j: 0..rhs.term_count-1 {
+        c := copy_term(Rterm, lhs.heap);
+        append_term(c, lhs);
+        Rterm = next_term(Rterm);
+    }
+
+    return lhs;
+}
 
 
 #scope_file
@@ -331,6 +369,65 @@ coefficient_heap: Bump_Heap;
 
 _zero: *Coefficient;
 _one:  *Coefficient;
+
+get_term_size :: (term: *Term) -> int {
+    start   := cast(*u8)term;
+    factors := get(term.factors);
+    end     := cast(*u8)(factors + term.factor_count);
+
+    return end - start;
+}
+
+next_term :: (term: *Term) -> *Term {
+    return get(term.next);
+}
+
+copy_term :: (src_term: *Term, heap: *Bump_Heap) -> *Term { 
+
+    // Copies source term into the target heap.
+    // Call 'append-term' to add it to the appropriate coefficient.
+
+    size := get_term_size(src_term);
+    term := heap_allocate(heap, size, size_of(Term));
+    memcpy(term, src_term, size);
+
+    return cast(*Term)term;
+}
+
+remove_term :: (term: *Term, coefficient: *Coefficient) {
+
+    // Terms are a doubly linked list; adjust pointers.
+
+    first_term := get(coefficient.first_term);
+    last_term  := get(coefficient.last_term);
+    if first_term == last_term {
+        // single element in the 'list'
+        set(*coefficient.first_term, null);
+        set(*coefficient.last_term,  null);
+    }
+    else
+    if term == first_term {
+        // adjust the head
+        next := get(term.next);
+        set(*coefficient.first_term, next);
+    }
+    else 
+    if term == last_term {
+        previous := get(term.previous);
+        set(*coefficient.last_term, previous);
+    }
+    else {
+        previous := get(term.previous);
+        next     := get(term.next);
+
+        set(*previous.next, next);
+        set(*next.previous, previous);
+    }
+
+    coefficient.term_count -= 1;
+    return;
+}
+
 
 /*
 negate :: (input: Basis_Term, output: *Basis_Term) {
@@ -360,31 +457,4 @@ complement :: (left: bool, k: Basis_Term, result: *Basis_Term ) {
 
     return;
 }
-
-sum :: (lhs: Basis_Term, rhs: Basis_Term, result: *Basis_Term) {
-    
-    // Result is pre-allocated space in the working set to store the value.
-    
-    copy_basis_term(src = lhs, dst = result);
-
-    Lterm := result.coefficient.first_term;
-    Rterm := rhs.coefficient.first_term;
-
-    // TODO: 04.17.2025 -- need to use the NEXT function to get the next term!
-    for i: 0..result.coefficient.term_count-1 {
-        for j: 0..rhs.coefficient.term_count-1 {
-            if terms_are_equal(Lterm, Rterm) {
-                Lterm.multiples += Rterm.multiples;
-            }
-        }
-    }
-
-    // Append the remaining terms from the RHS that could *not* be combined with the LHS.
-    for j: 0..rhs.coefficient.term_count-1 {
-        // new term in the allocator
-    }
-
-    return;
-}
-
 */

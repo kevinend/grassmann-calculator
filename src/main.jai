@@ -41,19 +41,13 @@ main :: () {
     default_1_elements: [] string = .["e0","e1","e2","e3"];
     default_scalar_variable_prefix_characters: string = "abcdnpqrsuvABCKLMNPQRS";
 
-    // *Must* update the exterior space before initializing other data structures!
     update_exterior_space(default_dimension, default_1_elements, default_scalar_variable_prefix_characters);
     initialize_operator_tables();
     initialize_coefficient_heap();
     initialize_working_set(*working_set);
 
-    print("Coefficient == %\n", size_of(Coefficient));
-    print("Term        == %\n", size_of(Term));
-
 	while !quit {
-
         
-
 		print("%", USER_PROMPT);
 		success, input = read_line();
         if !success {

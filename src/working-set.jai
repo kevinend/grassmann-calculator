@@ -106,7 +106,7 @@ store_coefficient :: (ws: *Working_Set, coefficient: *Coefficient) -> *Coefficie
     return ws_coefficient;
 }
 
-load_coefficient :: (ws: *Working_Set, index: int) -> Coefficient {
+load_coefficient :: (ws: *Working_Set, index: int) -> *Coefficient {
     
     // Loads *aggregate* coefficients from the working set.
     coefficient := ws.aggregate_coefficients[index];

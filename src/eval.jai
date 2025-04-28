@@ -94,38 +94,25 @@ eval :: (node: *Ast_Node, parent: *Ast_Node, working_set: *Working_Set) -> *Ast_
 
     basis_term_node: *Basis_Term_Node = null;
     if node.kind == .Basis_Term {
-        basis_term_node := cast(*Basis_Term_Node)node;
-        basis_term_node.coefficient = store_coefficient(working_set, basis_term_node.coefficient);
+        basis_term_node = cast(*Basis_Term_Node)node;
     }
-/*
+
     if parent == null {
+        // could argue we conceptually sum the coefficients or that we sum basis terms 3e1 + 4e1, we are summing the basis terms
+        // so we should probably do the following:
+        //   store_basis_term()
+        //   load_basis_term(working_set, )
         bitset := get_basis_bitset(basis_term_node.basis_term);
+        lhs    := store_coefficient(working_set, basis_term_node.coefficient);
+        rhs    := load_coefficient(working_set, bitset); // TODO: this should be the .'basis' not the bitset
 
-        accumulated_basis_coefficient := load_coefficient(working_set, bitset);
+        result := sum(lhs, rhs);
 
-        result := store_cofficient(working_set, zero());
-        sum(basis_term_node.coefficient, accumulated_basis_coefficient, result);
-
-        update_coefficient(working_set, bitset, result);
+       // update_coefficient(working_set, bitset, result);
     }
-*/
+
+    return basis_term_node;
 }
-
-/*
-
-        output := prepare_buffer(working_set);
-
-        sum(arg, aggregate, *output);
-        copy_basis_term(output, *aggregate);
-
-        mark_aggregated_updated(working_set, bitset);
-
-        return null;
-    }
-    else {
-        return basis_term;
-    }
-*/
       
 
 /*
@@ -249,68 +236,6 @@ eval :: (node: *Ast_Node, parent: *Ast_Node, working_set: *Working_Set) {
 
 */
 
-/*
-eval :: (node: *Ast_Node, parent: *Ast_Node, working_set: *Working_Set) -> *Ast_Node {
-
-    result_node: *Basis_Term_Node = null;
-    if node.kind == .Basis_Term {
-        result_node = cast(*Basis_Term_Node)node;
-    }
-    else
-    if node.kind == .Unary_Operator {
-        unary_op := cast(*Unary_Operator_Node)node;
-        unary_op.rhs = eval(unary_op.rhs, unary_op, working_set);
-
-        assert(unary_op.rhs.kind == .Basis_Term);
-        rhs := cast(*Basis_Term_Node)unary_op.rhs;
-
-        output := prepare_buffer(working_set);
-
-        if unary_op.op == {
-            case .Negation;         { negate    (              rhs.basis_term, *output); }
-            case .Left_Complement;  { complement(left = true,  rhs.basis_term, *output); }
-            case .Right_Complement; { complement(left = false, rhs.basis_term, *output); }
-        }
-
-        result_node = rhs;
-        result_node.basis_term = output;
-    }
-
-    if parent == null { // TODO: 04.15.2025 needs parent.kind == .Addition
-
-        bitset    := result_node.basis_term.basis.bitset;
-        arg       := result_node.basis_term;
-        aggregate := get_aggregate_basis_term(working_set, bitset);
-
-        output := prepare_buffer(working_set);
-
-        sum(arg, aggregate, *output);
-        copy_basis_term(output, *aggregate);
-
-        mark_aggregated_updated(working_set, bitset);
-
-        return null;
-    }
-    else {
-        return result_node;
-    }
-
-
-    /* This is the previous logic from the other day 04.14.2025
-        basis := result.element.basis;
-        lhs   := result.coefficient;
-
-        rhs   := get_basis_coefficient(working_set, basis);
-
-        results := get_next_buffer(working_set);
-        sum     := add_coefficients(lhs, rhs, results);
-        update_basis_coefficient(working_set, basis, sum);
-
-        reset_buffers(working_set);
-    */
-    
-}
-*/
 
 /*
 
