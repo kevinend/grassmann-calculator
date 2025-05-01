@@ -1,0 +1,1 @@
+--Metaprogram to check that all 'counts' use signed types.

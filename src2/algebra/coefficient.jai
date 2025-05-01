@@ -25,7 +25,7 @@ initialize_default_coefficient_heap :: () {
 
 reset_default_coefficient_heap :: () {
 
-    heap_reset_to_checkpoint(*coefficient_heap);
+    heap_reset_to_checkpoint(*default_coefficient_heap);
     return;
 }
 

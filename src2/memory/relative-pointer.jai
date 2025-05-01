@@ -7,10 +7,9 @@
     1. Serialization. 
        A buffer whose elements use relative pointers can be memcmp'd around, written and read back from disk and all references are valid.
     2. Size. 
-       On x64-based CPUs a pointer is 8 bytes and can address any valid virtual address. Most times you don't need to point that far away from
-       your current location. So if your 'next' element is always guaranteed to be within 256 bytes you could represent that as a single byte instead
-       of an 8-byte pointer or 1/8 of the space.
-*/
+       On x64-based CPUs a pointer is 8 bytes and can address any valid virtual address. 
+       Sometimes an application needs to point a small number of bytes away from its current location.
+       Using a relative pointer a single byte could be used instead of 8 if the next element is within 256 bytes which cuts memory usage by 1/8th.
 
 #scope_export
 
