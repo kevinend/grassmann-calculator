@@ -75,8 +75,9 @@ set_checkpoint :: (heap: *Bump_Heap) {
     heap.checkpoint_address = heap.current_position;
 }
 
-reset_to_checkpoint :: (heap: *Bump_Heap) {
+reset_to_checkpoint :: (heap: *Bump_Heap) -> *u8 {
     heap.current_position = heap.checkpoint_address;
+    return heap.current_position;
 }
 
 print :: (heap: Bump_Heap) {

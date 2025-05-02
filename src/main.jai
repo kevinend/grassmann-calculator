@@ -43,7 +43,7 @@ main :: () {
 
     update_exterior_space(default_dimension, default_1_elements, default_scalar_variable_prefix_characters);
     initialize_operator_tables();
-    initialize_coefficient_heap();
+    initialize_default_coefficient_heap();
     initialize_working_set(*working_set);
 
 	while !quit {
@@ -124,9 +124,9 @@ main :: () {
         }
 */
         report_temporary_storage_metrics();
-        report_coefficient_heap_metrics();
+        report_default_coefficient_heap_metrics();
         reset_temporary_storage();
-        reset_coefficient_heap();
+        reset_default_coefficient_heap();
         reset_working_set(*working_set);
 
     }

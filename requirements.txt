@@ -1,1 +1,4 @@
+--Print term
+--Print factor
 --Metaprogram to check that all 'counts' use signed types.
+--How do I handle Factors that are numerators and denominators? One big list? +- exponents??

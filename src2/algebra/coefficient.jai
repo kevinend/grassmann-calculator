@@ -11,6 +11,7 @@ Coefficient :: struct {
 zero :: () -> *Coefficient { return __zero; }
 one  :: () -> *Coefficient { return __one;  }
 
+// Default coefficient heap is statically allocated in this file and managed from the following set of procedures.
 initialize_default_coefficient_heap :: () {
 
     // Initialize coefficients that are used constantly for expressions, namely zero and one.
@@ -27,6 +28,23 @@ reset_default_coefficient_heap :: () {
 
     heap_reset_to_checkpoint(*default_coefficient_heap);
     return;
+}
+
+report_coefficient_heap_metrics :: () {
+    heap_print(*coefficient_heap);
+    return;
+}
+
+// Procedures used in creation and management of new coefficients.
+allocate_coefficient :: (heap: *Bump_Heap) -> *Coefficient {
+    
+    coefficient := cast(*Coefficient)heap_allocate(heap, size = size_of(Coefficient), alignment = size_of(Coefficient));
+    assert(coefficient != null);
+    memset(coefficient, 0, size_of(Coefficient));
+
+    coefficient.heap = heap;
+
+    return coefficient;
 }
 
 new_coefficient :: (value: float, heap: *Bump_Heap = null) -> *Coefficient {
@@ -60,17 +78,6 @@ new_coefficient :: (multiples: float, factor_type: Factor_Type, exponent: u16, s
 
     append_term(term, coefficient);
     append_factor(factor, term);
-
-    return coefficient;
-}
-
-allocate_coefficient :: (heap: *Bump_Heap) -> *Coefficient {
-    
-    coefficient := cast(*Coefficient)heap_allocate(heap, size = size_of(Coefficient), alignment = size_of(Coefficient));
-    assert(coefficient != null);
-    memset(coefficient, 0, size_of(Coefficient));
-
-    coefficient.heap = heap;
 
     return coefficient;
 }
@@ -147,11 +154,64 @@ coefficient_to_string :: (coefficient: *Coefficient) -> string {
     for i: 0..count-2 {
         term_to_string(term, *builder);
         append(*builder, "+");
-        term = get(term.next);
+        term = get_next_term(term);
     }
     term_to_string(term, *builder);
 
     return builder_to_string(*builder);
+}
+
+append_term :: (term: *Term, coefficient: *Coefficient) {
+
+    if coefficient.term_count == 0 {
+        set(*coefficient.first_term, term);
+        set(*coefficient.last_term,  term);
+    }
+    else {
+        last := get(coefficient.last_term);
+        set_next_term    (last, term);
+        set_previous_term(term, last);
+        set_next_term    (term, null);
+        
+        set(*coefficient.last_term, term);
+    }
+
+    coefficient.term_count += 1;
+    return;
+}
+
+remove_term :: (term: *Term, coefficient: *Coefficient) {
+
+    // Terms are a doubly linked list; adjust pointers.
+
+    first_term := get(coefficient.first_term);
+    last_term  := get(coefficient.last_term);
+    if first_term == last_term {
+        // single element in the 'list'
+        set(*coefficient.first_term, null);
+        set(*coefficient.last_term,  null);
+    }
+    else
+    if term == first_term {
+        // adjust the head
+        next := get_next_term(term);
+        set(*coefficient.first_term, next);
+    }
+    else 
+    if term == last_term {
+        previous := get_previous_term(term);
+        set(*coefficient.last_term, previous);
+    }
+    else {
+        previous := get_previous_term(term);
+        next     := get_next_term(term);
+
+        set_next_term(previous, next);
+        set_previous_term(next, previous);
+    }
+
+    coefficient.term_count -= 1;
+    return;
 }
 
 #scope_file
