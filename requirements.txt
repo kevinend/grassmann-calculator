@@ -2,3 +2,55 @@
 --Print factor
 --Metaprogram to check that all 'counts' use signed types.
 --How do I handle Factors that are numerators and denominators? One big list? +- exponents??
+--Should the 'default_coefficient_heap' really be a basis_term heap?
+  Which the basis term is just a basis_bitset: Basis_Biteset
+  Then when you allocate in the parser and on the check do you need to do anything weird.
+
+  Right now we are doing this:
+
+    This is for a new Number:
+    coefficient := new_coefficient(token.value);
+    basis       := get_basis_element(0);
+
+    node = new_basis_term_node(node_id, coefficient, basis);
+
+    What about when we do resolution in the AST?
+
+    if basis_1_element {
+        basis_term  := new_basis_term :: (basis_bitset = 0, value = 1);
+        coefficient     := one();
+        basis_term_node := new_basis_term_node(ident.node_id, coefficient, basis_1_element);
+    }
+
+    //////////////////////////////////////////////////
+    How these should be written:
+
+    // Need to document that the basis_bitset for 0 is reserved for use by all scalars!
+    Case1:
+        basis_term := new_basis_term(basis_bitset = 0, value = token.value);
+        node       := new_basis_term_node(node_id, basis_term);
+    
+    Case2:
+        basis_term := new_basis_term(basis_bitset = 0, value = 1);
+        node       := new_basis_term_node(ident.node_id, basis_term);
+
+    Basis_Term_Node :: struct {
+        node_id: int;
+        basis_term: *Basis_Term;
+    }
+
+    basis_term.basis_bitset
+
+    In this case the Coefficient doesn't own the heap, the Basis_Term does.
+    Where am I getting allocated to and that gets passed through to the other calls.
+    Since these two are orthogonal to each other not sure how else to handle this case other than do it this way honestly
+
+    so instead of reading it logically like
+    (a1*a2 + b1*b2)^e1 it goes e1|a1,a2|b1,b2 with data structures to match
+
+
+    The default_coefficient_heap is almost turning into an 'expression_heap' where we store the basis terms (bitset and coefficients)
+    Then the working set operates as registers to store the data.
+    
+    I did like the suggestion of having a swapchain to manage the buffers and the a heap to allocate from the buffers
+    and those should be separte but integrated. Jesus there are a lot of components to this problem.
