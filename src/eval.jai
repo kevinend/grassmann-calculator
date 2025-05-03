@@ -37,6 +37,60 @@
 #scope_export
 
 /*
+    I need to write the eval; I just don't have it today man, jesus.
+
+    if node.kind == .Unary_Operator {
+        rhs := eval(unary_op.rhs);
+
+        result = store_basis_term
+        if op == {
+            case .Negate;     { negate(*rhs);     }
+            case .Complement; { complement(*rhs); }
+            case .Complement; { complement(*rhs); }
+        }
+    }
+    else if node.kind == .Associative_Operator {
+        associative_op := cast(*Associative_Operator)node;
+        args := associative_op.args;
+
+        if associative_op.op == .Addition {
+            // Addition is deferred until down below.
+            for i: 0..args.count-1 { eval(args[i]); }
+        }
+        else {
+            lhs := store_basis_term(eval(args[0]));
+            for i: 1..args.count-1 {
+                rhs := store_basis_term(eval(args[i]));
+
+                result := store_basis_term(zero());
+                if associative_op.op == {
+                    case .Exterior_Product;    { result = exterior_product  (lhs, rhs); }
+                    case .Regressive_Product;  { result = regressive_product(lhs, rhs); }
+                }
+                lhs = result;
+            }
+        }
+    }
+
+     if parent == null {
+        // could argue we conceptually sum the coefficients or that we sum basis terms 3e1 + 4e1, we are summing the basis terms
+        // so we should probably do the following:
+        //   store_basis_term()
+        //   load_basis_term(working_set, )
+        bitset := get_basis_bitset(basis_term_node.basis_term);
+        lhs    := store_coefficient(working_set, basis_term_node.coefficient);
+        rhs    := load_coefficient(working_set, bitset); // TODO: this should be the .'basis' not the bitset
+
+        result := sum(lhs, rhs);
+
+       // update_coefficient(working_set, bitset, result);
+    }
+
+    return basis_term_node;
+
+
+
+/*
 simplify_and_assign :: (ast: Ast, user_variables: *Table(string, *Ast_Node), scratch: *Scratch) {
 
     reset_scratch_space(scratch);

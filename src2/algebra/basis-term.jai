@@ -21,7 +21,14 @@ Complement_Type :: enum u8 {
 
 // unary functions
 negate :: (arg: *Basis_Term) -> *Basis_Term {
-    // stub
+    /*
+        result := store_basis_term(arg); 
+        foreach (term in result.coefficient.terms) {
+            flip the sign 
+        } 
+        return result;
+    */
+    
     return null;
 }
 

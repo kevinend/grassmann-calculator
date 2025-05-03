@@ -38,14 +38,17 @@ set_previous_term :: (term: *Term, previous: *Term) {
 }
 
 get_next_term :: (term: *Term) -> *Term {
+
     return get(term.next);
 }
 
 get_previous_term :: (term: *Term) -> *Term {
+
     return get(term.previous);
 }
 
 get_term_size :: (term: *Term) -> int {
+    
     start   := cast(*u8)term;
     factors := get(term.factors);
     end     := cast(*u8)(factors + term.factor_count);

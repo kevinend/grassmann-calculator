@@ -1,9 +1,11 @@
 #scope_export
 
+Basis_Bitset :: int;
+
 Basis_Element :: struct {
     // Immutable defintion of a basis element from grade [0,n] in the currently declared space.
     grade:  int;
-    bitset: int;
+    bitset: Basis_Bitset;
     symbol: string;
 }
 
@@ -83,6 +85,29 @@ populate_basis_elements_of_grade_k :: (
 ) {
 
     // Generates all basis elements of grade 'k' from a given space and adds them to a collection provided by the caller.
+    // Example: _1_elements_symbols = .["e0","e1","e2","e3"]; 1-elements are represented as individual bits (1 << 1) == e1 in this case.
+    //          Since there are 4, 1-elements then the dimension of the space is 4 (n=4)
+    //
+    //          populate_basis_elements_of_grade_k(
+    //                 k = 2
+    //                 n = 4
+    //                 c = 0
+    //                 grade = 0
+    //                 bitset = 0
+    //                 elements = *[..] ; empty starting list
+    //          )
+    //      
+    //          elements = [
+    //              .{ grade = 2; bitset = 3 }  // e0^e1
+    //              .{ grade = 2; bitset = 5 }  // e0^e2
+    //              .{ grade = 2; bitset = 9 }  // e0^e3
+    //              .{ grade = 2; bitset = 6 }  // e1^e2
+    //              .{ grade = 2; bitset = 10 } // e1^e3
+    //              .{ grade = 2; bitset = 12 } // e2^e3
+    //          ]
+    //
+    // When executed in a loop from 0..N with the same buffer ('elements') in this case. We generate all the basis elements
+    // in the space up to the dimension in order of 0-elements, then 1-elements, then 2-elements, etc..
 
     if grade == k {
         // found a basis element of grade k, add to our collection of basis elements

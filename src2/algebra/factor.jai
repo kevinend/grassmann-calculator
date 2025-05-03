@@ -13,7 +13,6 @@ new_factor :: (exponent: s32, symbolic_factor: string, heap: *Bump_Heap) -> *Fac
     assert(factor != null);
     memset(factor, 0, size_of(Factor));
 
-    factor.type     = type;
     factor.exponent = exponent;
     factor.encoded_symbol = encode(symbolic_factor);
 
@@ -25,12 +24,12 @@ print_factor :: (factor: *Factor) -> string {
     return "";
 }
 
-matches_symbolic_factor :: (ident: string) -> bool {
+matches_symbolic_factor :: (ident: string, symbolic_factor_prefix_characters: string) -> bool {
 
     // Symbolic factors are identifiers that have a leading character in the 'allowed-list' for symbolic factors and are followed by at least 1 digit.
     matching_character_prefix: bool = false;
-    for i: 0..space.scalar_variable_prefix_characters.count-1 {
-        if ident[0] == space.scalar_variable_prefix_characters[i] {
+    for i: 0..symbolic_factor_prefix_characters.count-1 {
+        if ident[0] == symbolic_factor_prefix_characters[i] {
             matching_character_prefix = true;
             break;
         }

@@ -14,7 +14,7 @@ one  :: () -> *Coefficient { return __one;  }
 // Default coefficient heap is statically allocated in this file and managed from the following set of procedures.
 initialize_default_coefficient_heap :: () {
 
-    // Initialize coefficients that are used constantly for expressions, namely zero and one.
+    // Allocate coefficients that are used constantly for expressions in the default coefficient heap, namely zero and one.
     __zero = new_coefficient(0);
     __one  = new_coefficient(1);
 
@@ -31,6 +31,7 @@ reset_default_coefficient_heap :: () {
 }
 
 report_coefficient_heap_metrics :: () {
+    
     heap_print(*coefficient_heap);
     return;
 }
