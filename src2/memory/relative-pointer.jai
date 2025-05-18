@@ -10,6 +10,7 @@
        On x64-based CPUs a pointer is 8 bytes and can address any valid virtual address. 
        Sometimes an application needs to point a small number of bytes away from its current location.
        Using a relative pointer a single byte could be used instead of 8 if the next element is within 256 bytes which cuts memory usage by 1/8th.
+*/
 
 #scope_export
 

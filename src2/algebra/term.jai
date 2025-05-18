@@ -59,7 +59,7 @@ get_term_size :: (term: *Term) -> int {
 append_factor :: (factor: *Factor, term: *Term) {
 
     // TODO: 05.01.2025 -- How to handle Numerators and Denominators???
-    assert(term   != null)
+    assert(term   != null);
     assert(factor != null);
     if term.factor_count == 0 {
         set(*term.factors, factor);

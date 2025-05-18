@@ -7,9 +7,9 @@ Factor :: struct {
     encoded_symbol: u32;
 }
 
-new_factor :: (exponent: s32, symbolic_factor: string, heap: *Bump_Heap) -> *Factor {
+new_factor :: (exponent: s32, symbolic_factor: string) -> *Factor {
 
-    factor := cast(*Factor)heap_allocate(heap, size = size_of(Factor), alignment = size_of(Factor));
+    factor := cast(*Factor)heap_allocate(context.expression_heap, size = size_of(Factor), alignment = size_of(Factor));
     assert(factor != null);
     memset(factor, 0, size_of(Factor));
 

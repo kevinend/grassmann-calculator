@@ -1,81 +1,33 @@
 #scope_export
 
 Coefficient :: struct {
-    heap:       *Bump_Heap;
+
     first_term: Relative_Pointer(Term);
     last_term:  Relative_Pointer(Term);
-
     term_count: s32;  // TODO: metaprogram to ensure anything that is a count is a SIGNED type to prevent underflow in loops
 }
 
-zero :: () -> *Coefficient { return __zero; }
-one  :: () -> *Coefficient { return __one;  }
-
-// Default coefficient heap is statically allocated in this file and managed from the following set of procedures.
-initialize_default_coefficient_heap :: () {
-
-    // Allocate coefficients that are used constantly for expressions in the default coefficient heap, namely zero and one.
-    __zero = new_coefficient(0);
-    __one  = new_coefficient(1);
-
-    // Set checkpoint so that when we reset we leave zero and one untouched for subsequent executions.
-    heap_set_checkpoint(*default_coefficient_heap);
-
-    return;
-}
-
-reset_default_coefficient_heap :: () {
-
-    heap_reset_to_checkpoint(*default_coefficient_heap);
-    return;
-}
-
-report_coefficient_heap_metrics :: () {
-    
-    heap_print(*coefficient_heap);
-    return;
-}
 
 // Procedures used in creation and management of new coefficients.
-allocate_coefficient :: (heap: *Bump_Heap) -> *Coefficient {
-    
-    coefficient := cast(*Coefficient)heap_allocate(heap, size = size_of(Coefficient), alignment = size_of(Coefficient));
+new_coefficient :: (value: float) -> *Coefficient {
+
+    coefficient := cast(*Coefficient)heap_allocate(context.expression_heap, size=size_of(Coefficient), alignment=size_of(Coefficient));
     assert(coefficient != null);
-    memset(coefficient, 0, size_of(Coefficient));
-
-    coefficient.heap = heap;
-
-    return coefficient;
-}
-
-new_coefficient :: (value: float, heap: *Bump_Heap = null) -> *Coefficient {
-
-    coefficient: *Coefficient = null;
-    if !heap {
-        coefficient = allocate_coefficient(*default_coefficient_heap);
-    }
-    else {
-        coefficient = allocate_coefficient(heap);
-    }
     
-    term := new_term(value, coefficient.heap);
+    term := new_term(value);
     append_term(term, coefficient);
 
     return coefficient;
 }
 
-new_coefficient :: (multiples: float, factor_type: Factor_Type, exponent: u16, scalar_variable: string, heap: *Bump_Heap = null) -> *Coefficient {
+new_coefficient :: (multiples: float, factor_type: Factor_Type, exponent: u16, scalar_variable: string) -> *Coefficient {
 
-    coefficient: *Coefficient;
-    if !heap {
-        coefficient := allocate_coefficient(*default_coefficient_heap);
-    }
-    else {
-        coefficient := allocate_coefficient(heap);
-    }
+    coefficient := cast(*Coefficient)heap_allocate(context.expression_heap, size=size_of(Coefficient), alignment=size_of(Coefficient));
+    assert(coefficient != null);
+    memset(coefficient, 0, size_of(Coefficient));
 
-    term   := new_term(multiples, coefficient.heap);
-    factor := new_factor(factor_type, exponent, scalar_variable, coefficient.heap);
+    term   := new_term(multiples);
+    factor := new_factor(exponent, scalar_variable);
 
     append_term(term, coefficient);
     append_factor(factor, term);
